@@ -111,9 +111,13 @@ if __name__ == "__main__":
     output_address = "/Users/tylerchase/Documents/Stanford_Classes/CS224n_Natural_Language_Processing_with_Deep_Learning/final project/data/"
     
     # subreddit list
-    subreddits = ['AskReddit', 'nottheonion',\
-                  'trees', 'LifeProTips', 'tifu', 'news', 'personalfinance', 'science', \
-                  'todayilearned', 'mildlyinteresting', 'interestingasfuck']
+    # listed with similar subs on each line
+    subreddits = ['AskReddit', 'LifeProTips',\
+                  'nottheonion', 'news', 'science',\
+                  'trees', \
+                  'tifu', \
+                  'personalfinance', \
+                  'mildlyinteresting', 'interestingasfuck']
     
     # test function
     import_data(input_address, output_address, '201509', outputs = 1000, subreddit = subreddits, print_flag = False)
