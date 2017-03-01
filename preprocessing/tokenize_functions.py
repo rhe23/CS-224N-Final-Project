@@ -7,7 +7,7 @@ def append_start_end_tokens(tokens):
     return tokens
 
 def tokenizer(token_list, punc = True):
-    return [tokenize(punc, s) for s in toke_list]
+    return [tokenize(punc, s) for s in token_list]
 
 def tokenize(s, preserve_punc = True):
     #tokenize a string to a list of tokens
