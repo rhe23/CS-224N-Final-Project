@@ -5,6 +5,7 @@ import argparse
 # Gets files in given directory with prefix and/or suffix.
 # By default gets everything in directory
 def get_files_in_dir(directory, prefix=None, suffix=None):
+	cwd = os.getcwd()
 	os.chdir(directory)
 	pattern = ''  # file name pattern
 	if prefix:
@@ -13,8 +14,9 @@ def get_files_in_dir(directory, prefix=None, suffix=None):
 	if suffix:
 		pattern += suffix
 
-	files = glob.glob(pattern):
-	os.chdir("-")  # steps back to original directory
+	files = glob.glob(pattern)
+	files = [directory + file for file in files]
+	os.chdir(cwd)  # steps back to original directory
 	return files
 
 # Concatenates a list of files specified by filenames and outputs the result into output_file
@@ -32,7 +34,7 @@ if __name__ == "__main__":
 	parser.add_argument('output', help="output file path")
 	parser.add_argument('-p', '--prefix', help="prefix")
 	parser.add_argument('-s', '--suffix', help="suffix")
-	parser.add_argument('--a', '--allfiles', help="filter on all files specifier (not to be used with \
+	parser.add_argument('-a', '--allfiles', help="filter on all files specifier (not to be used with \
 		prefix/suffix)", action='store_true')
 
 	args = parser.parse_args()
