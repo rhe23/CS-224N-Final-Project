@@ -16,4 +16,5 @@ def tokenize(s, preserve_punc = True):
 
         return re.findall(r'[a-zA-Z]+|[a-zA-Z]+[\W]*[a-zA-Z]*', s)
 
-    return filter(lambda name: name.strip(), re.findall(r"[-\w]+'[-\w]|[-\w]+|(?<=\s)*\W+(?=\s+)|\W+(?=[a-zA-Z0-9])", s))
+    l= filter(lambda x: x.strip(), re.findall(r"[-\w]+'[-\w]|[-\w]+|(?<=\s)*\W+(?=\s+)|\W+(?=[a-zA-Z0-9])", s))
+    return [x.lstrip().rstrip() for x in l ]
