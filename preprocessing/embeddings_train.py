@@ -1,8 +1,6 @@
 from tokenize_functions import tokenizer, tokenize, append_start_end_tokens
 import os, csv, random, cPickle
 import numpy as np
-from scipy import sparse
-from collections import Counter
 
 class Vocab_Builder:
     #build a vocab list with index for each vocab from a list of strings, iterates until list is empty then
