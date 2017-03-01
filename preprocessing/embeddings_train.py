@@ -18,18 +18,12 @@ class Vocab_Builder:
         self.words += tokenized
         # self.vcounts.update(tokenized)
 
-    def __str__(self):
-        return ["Number of unique phrases: " + str(len(self.phrase_list)),
-                "Current Max Index: " + str(self.max_index),
-                "Number of Vocab words: " + len(self.vocab.keys())]
-
     def update_vocab(self):
         #takes the most up-to-date vcounts and make it a vocab dictionary
         # self.vocab = {word: (i, count) for word, (i, count) in enumerate(self.vcounts)}
         self.vocab = {word: i for word, i in enumerate(set(self.words))}
 
     def get_vocab(self):
-
         return self.vocab
 
     def export(self, path = os.getcwd()):
