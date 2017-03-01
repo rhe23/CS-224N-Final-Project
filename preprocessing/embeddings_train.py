@@ -119,3 +119,4 @@ class make_embeddings:
     def save_weights(self, path):
         with open(path, 'wb') as weights:
             cPickle.dump(self.W, weights, protocol=2)
+
