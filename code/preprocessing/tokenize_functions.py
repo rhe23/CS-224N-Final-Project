@@ -11,10 +11,10 @@ def tokenizer(token_list, punc = True):
 
 def tokenize(s, preserve_punc = True):
     #tokenize a string to a list of tokens
+
     if preserve_punc ==False:
+
         return re.findall(r'[a-zA-Z]+|[a-zA-Z]+[\W]*[a-zA-Z]*', s)
 
-    return re.findall(r'[a-zA-Z]+|[a-zA-Z]+[\W]+[a-zA-Z]*|(?<=\s)*\W+(?=\s+)', s)
-
-
-
+    l= filter(lambda x: x.strip(), re.findall(r"[-\w]+'[-\w]|[-\w]+|(?<=\s)*\W+(?=\s+)|\W+(?=[a-zA-Z0-9])", s))
+    return [x.lstrip().rstrip() for x in l ]
