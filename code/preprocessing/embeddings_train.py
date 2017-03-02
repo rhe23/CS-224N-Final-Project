@@ -133,3 +133,33 @@ class make_embeddings:
         with open(path, 'wb') as weights:
             cPickle.dump(self.W, weights, protocol=2)
 
+    """some diagnostic tools for the trained embeddings. One which captures most similar words, and the other which visualizes vectors """
+
+    def get_similar(self, word, n_similar):
+        #returns the n words that are the most similar to the input word using cosine similarity
+        try:
+            word_ind = self.vocab[word]
+        except KeyError:
+            return "Sorry this word does not exist."
+
+        word_magnitude = np.linalg.norm(self.W[word_ind])
+
+        scores = self.W.dot(self.W[word_ind,])/(np.linalg.norm(self.W, axis=0)*word_magnitude)
+        #kind of a retarded way to get the top n argmax but numpy doesn't have a build in method for it:
+        score_dict = dict(zip(scores, self.W.keys(xrange(0, self.vocab_size))))
+
+        return [score_dict[i] for i in sorted(score_dict.keys())[1:n_similar+1]] #the first index will always be 1 because of the word itself
+
+    def plot_vectors(self, words = []):
+        #see https://www.quora.com/How-do-I-visualise-word2vec-word-vectors
+        from sklearn.manifold import TSNE
+        import matplotlib.pyplot as plt
+        m = TSNE(n_components=2, random_state=0)
+        m.fit_transform(self.W)
+        #reduces the word vectors into a lower dimensional space and then plot them
+
+        plt.scatter(m[:, 0], m[:, 1])
+        for label, x, y in zip(self.vocab, m[:, 0], m[:, 1]):
+            plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords='offset points')
+
+        plt.show()
