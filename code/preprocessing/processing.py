@@ -1,9 +1,19 @@
 #main processing file for vocab/word embeddings
 import os
-
 from embeddings_train import Vocab_Builder, make_embeddings
+
+def make_corpus(path):
+    corpus = []
+    with open(path, 'r') as f:
+        for line in f:
+            corpus.append(line)
+
+    return corpus
+
+
 os.chdir('../..')
 filename = "data/tifu_201509_titles"
+
 
 vocab_builder = Vocab_Builder()
 corpus = []

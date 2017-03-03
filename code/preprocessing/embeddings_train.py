@@ -158,6 +158,12 @@ class make_embeddings:
         m.fit_transform(self.W)
         #reduces the word vectors into a lower dimensional space and then plot them
 
+        #get word indices for words:
+        try:
+            word_inds = [self.vocab[w] for w in words]
+        except KeyError:
+            return "Sorry one of your words does not exist."
+        m = m[word_inds,:]
         plt.scatter(m[:, 0], m[:, 1])
         for label, x, y in zip(self.vocab, m[:, 0], m[:, 1]):
             plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords='offset points')
