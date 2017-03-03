@@ -15,35 +15,38 @@ def get_files_in_dir(directory, prefix=None, suffix=None):
 		pattern += suffix
 
 	files = glob.glob(pattern)
-	files = [directory + file for file in files]
 	os.chdir(cwd)  # steps back to original directory
 	return files
 
 # Concatenates a list of files specified by filenames and outputs the result into output_file
-def concat_files(filenames, output_file):
+def concat_files(directory, files, output_file, labels=None):
+	labels_delimiter = '|||||'
 	with open(output_file, 'w') as outfile:
-		for file_name in filenames:
-			with open(file_name) as infile:
+		for file_name in files:
+			subreddit = file_name.split("_")[0]  # Characters before first underscore
+			file_path = directory + file_name
+			with open(file_path) as infile:
 				for line in infile:
+					if labels:
+						outfile.write(subreddit + ' ' + labels_delimiter + ' ')
 					outfile.write(line)
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Concatenates files in directory, \
-		optionally filtered on prefix and/or suffix.')
+		filtered on prefix and/or suffix.')
 	parser.add_argument('directory', help="directory of files")
 	parser.add_argument('output', help="output file path")
-	parser.add_argument('-p', '--prefix', help="prefix")
+	parser.add_argument('-p', '--prefix', help="prefix")  # typically subreddits
 	parser.add_argument('-s', '--suffix', help="suffix")
-	parser.add_argument('-a', '--allfiles', help="filter on all files specifier (not to be used with \
-		prefix/suffix)", action='store_true')
+	parser.add_argument('-l', '--labels', help="add subreddit labels to each line of dataset", action='store_true')
 
 	args = parser.parse_args()
-	if args.allfiles and (args.prefix or args.suffix):  # if allfiles is specified with prefix or suffix
-		parser.print_help()
-		parser.exit()
-	if not (args.prefix or args.suffix or args.allfiles):  # if no option is specified
+
+	if not (args.prefix or args.suffix):  # if no option is specified
+		print "Error: must specify at least one of prefixes/suffixes."
 		parser.print_help()
 		parser.exit()
 
-	filenames = get_files_in_dir(args.directory, args.prefix, args.suffix)
-	concat_files(filenames, args.output)
+	files = get_files_in_dir(args.directory, args.prefix, args.suffix)
+	concat_files(args.directory, files, args.output, args.labels)
+	print "Successfully concatenated {} files".format(len(files))
