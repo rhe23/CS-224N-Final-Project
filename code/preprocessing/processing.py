@@ -19,14 +19,15 @@ def make_vocab(path):
     return vocab_builder.get_vocab()
 
 corpus = make_corpus(path)
+print len(corpus)
 vocab = make_vocab(path)
-
+print len(vocab)
 #embeddings:
 glove_trainer = make_embeddings(corpus = corpus, vocab = vocab)
 glove_trainer.make_cooccurance_mat()
 glove_trainer.train(iters=100, v_dim= 25, a = 0.75, x_max=100)
-# W = glove_trainer.get_weights()
-glove_trainer.save_weights('/home/lel/cs224n/Project/CS-224N-Final-Project/data/test_weight.pkl')
+# # W = glove_trainer.get_weights()
+# glove_trainer.save_weights('/home/lel/cs224n/Project/CS-224N-Final-Project/data/test_weight.pkl')
 
 # if __name__ == "__main__":
 # 	if len(sys.argv != 4):

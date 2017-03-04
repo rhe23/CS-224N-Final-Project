@@ -1,8 +1,7 @@
 from tokenize_functions import tokenizer, tokenize, append_start_end_tokens
-import os, csv, random, cPickle
+import os, csv, random, cPickle, copy, itertools
 import numpy as np
-from scipy.sparse import lil_matrix
-import itertools
+from collections import defaultdict, Counter
 
 class Vocab_Builder:
     def __init__(self):
@@ -25,6 +24,13 @@ class Vocab_Builder:
             for k, v in self.vocab.items():
                 writer.writerow([v, k])
 
+def weight_func(x_ij, a, x_max):
+    #x_ij is the occcurencc count, alpha is the scaling param, x_max is the cutoff
+    if x_ij < x_max:
+        return (x_ij/x_max)**a
+    return 1
+
+
 class make_embeddings:
     #Class for training glove vectors
 
@@ -32,17 +38,8 @@ class make_embeddings:
 
         self.vocab = vocab #vocab is assumed to be a dictionary
         self.vocab_size = len(self.vocab)
-        self.cooccur_mat = lil_matrix((self.vocab_size , self.vocab_size), dtype=np.int32)
+        self.coocurance_mat = defaultdict(lambda :defaultdict(lambda :0)) #use a dictionary as representation
         self.corpus = corpus #corpus is assumed to be a list of individual sentences
-
-    def add_one_count(self, center_w, context_w):
-        self.cooccur_mat[center_w, context_w] += 1
-
-    def weight_func(self, x_ij, a, x_max):
-        #x_ij is the occcurencc count, alpha is the scaling param, x_max is the cutoff
-        if x_ij < x_max:
-            return (x_ij/x_max)**a
-        return 1
 
     def make_cooccurance_mat(self):
         #assume corpus is a list of individual sentences, if windowsize = 0, we take the entire sentence as the window
@@ -55,37 +52,32 @@ class make_embeddings:
             word_index = list(xrange(0, len(word_ids)))
 
             for word_ind in word_index: #assume that the window size is the entire sentence, #w_id serves as the center word
-                left_words, right_words =  word_ids[0: word_ind],  word_ids[word_ind + 1:len(word_ids)]
-
-                if left_words:
-
-                    map(self.add_one_count, [word_ids[word_ind]]*len(left_words), left_words)
-
-                if right_words:
-
-                    map(self.add_one_count, [word_ids[word_ind]]*len(right_words), right_words)
+                v = Counter()
+                words = word_ids[0: word_ind] + word_ids[word_ind + 1:len(word_ids)]
+                v.update(words)
+                for context_word_id, value in v.iteritems():
+                    self.coocurance_mat[word_ids[word_ind]][context_word_id] +=value
 
     def get_coocurance_mat(self):
-        return self.cooccur_mat
+        return self.coocurance_mat
 
     def minimize(self, learning_rate = 0.05):
 
         #define cost J: which is = w_i^Tw_j + b_i + b^_j - log(x_ij) where b^ is the context bias of word j and b is the center bias of word
         cost = 0
 
-        non_zero_inds = zip(self.nonzeros[0], self.nonzeros[1])
-        np.random.shuffle(non_zero_inds)
+        np.random.shuffle(self.nonzeros)
 
-        for (i, j) in non_zero_inds:
+        for (i, j) in self.nonzeros:
             #J = f(xij)(w_i^Tw^_j + b_i + b^_j)^2
 
-            J= (self.W[i,:].dot(self.W[self.vocab_size+j,:])) + self.b[i] + self.b[self.vocab_size+j] - np.log(self.cooccur_mat[i,j])
+            J= (self.W[i,:].dot(self.W[self.vocab_size+j,:])) + self.b[i] + self.b[self.vocab_size+j] - np.log(self.coocurance_mat[i][j])
 
-            cost += self.fx_ij[i,j]*(J**2)
+            cost += self.fx[i][j]*(J**2)
 
-            self.gradW[i,:] = self.fx_ij[i,j]*J*self.W[self.vocab_size+j,:]
-            self.gradW[self.vocab_size+j,:]  = self.fx_ij[i,j]*J*self.W[i,:]
-            self.gradb[i] = self.gradb[self.vocab_size+j] = self.fx_ij[i,j]*J
+            self.gradW[i,:] = self.fx[i][j]*J*self.W[self.vocab_size+j,:]
+            self.gradW[self.vocab_size+j,:]  = self.fx[i][j]*J*self.W[i,:]
+            self.gradb[i] = self.gradb[self.vocab_size+j] = self.fx[i][j]*J
 
             self.W[i,:] -=learning_rate*self.gradW[i,:]
 
@@ -99,15 +91,17 @@ class make_embeddings:
         #how many iterations to run, and the dimension of the vectors to be trained
 
         #calculate weight matrix of f(x_ij)
-        self.fx_ij = self.cooccur_mat.copy()
-        self.fx_ij_cx = self.fx_ij.tocoo()
+        self.fx = copy.deepcopy(self.coocurance_mat)
 
-        for row, col, dat in itertools.izip(self.fx_ij_cx.row, self.fx_ij_cx.col, self.fx_ij_cx.data):
-            self.fx_ij[row, col] = self.weight_func(dat, a, x_max)
+        for center_w, context_words in self.coocurance_mat.iteritems():
+            for context_word in context_words.keys():
+                self.fx[center_w][context_word] = weight_func(float(self.coocurance_mat[center_w][context_word]), a, x_max)
 
-        #get a list of indices for nonzero elements:
-        self.nonzeros = self.fx_ij.nonzero()
+        rowids = self.coocurance_mat.keys()
+        colids = [self.coocurance_mat[id].keys() for id in rowids]
 
+        self.nonzeros = [zip([k]*len(colids[k]), colids[k]) for k in rowids]
+        self.nonzeros = [pair for center_w in self.nonzeros for pair in center_w]
 
         #generate W matrix of size 2*vocab, 0:vocab = center words, vocab +1:2*vocab are context words
         self.W = np.random.rand(2*self.vocab_size, v_dim)
