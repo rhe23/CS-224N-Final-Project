@@ -7,7 +7,6 @@ class Vocab_Builder:
     #saves the vocab
     def __init__(self):
 
-        # self.vcounts = Counter()
         self.vocab = {}
 
     def add(self, sentence):
@@ -21,7 +20,6 @@ class Vocab_Builder:
 
         return tokenized
     def update_vocab(self):
-        #takes the most up-to-date vcounts and make it a vocab dictionary
 
         self.vocab = dict((ind,word) for word,ind in self.vocab.iteritems())
 
