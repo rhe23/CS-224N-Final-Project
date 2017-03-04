@@ -9,19 +9,21 @@ class Vocab_Builder:
 
         # self.vcounts = Counter()
         self.vocab = {}
-        self.words = []
 
     def add(self, sentence):
         #using the current stored phrase_list and build the vocab dictionary
         tokenized = tokenize(sentence.lower())
         tokenized = append_start_end_tokens(tokenized)
-        self.words += tokenized
-        # self.vcounts.update(tokenized)
+
+        for word in tokenized:
+            if word not in self.vocab.keys():
+                self.vocab[word] = len(self.vocab.keys()) + 1
+
         return tokenized
     def update_vocab(self):
         #takes the most up-to-date vcounts and make it a vocab dictionary
-        # self.vocab = {word: (i, count) for word, (i, count) in enumerate(self.vcounts)}
-        self.vocab = {i:word for word, i in enumerate(set(self.words))}
+
+        self.vocab = dict((ind,word) for word,ind in self.vocab.iteritems())
 
     def get_vocab(self):
         return self.vocab
