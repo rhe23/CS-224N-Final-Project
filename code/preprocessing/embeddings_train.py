@@ -1,27 +1,18 @@
 from tokenize_functions import tokenizer, tokenize, append_start_end_tokens
 import os, csv, random, cPickle
 import numpy as np
+from scipy.sparse import csr_matrix
 
 class Vocab_Builder:
-    #build a vocab list with index for each vocab from a list of strings, iterates until list is empty then
-    #saves the vocab
     def __init__(self):
-
-        # self.vcounts = Counter()
         self.vocab = {}
-        self.words = []
 
     def add(self, sentence):
-        #using the current stored phrase_list and build the vocab dictionary
         tokenized = tokenize(sentence.lower())
         tokenized = append_start_end_tokens(tokenized)
-        self.words += tokenized
-        # self.vcounts.update(tokenized)
-        return tokenized
-    def update_vocab(self):
-        #takes the most up-to-date vcounts and make it a vocab dictionary
-        # self.vocab = {word: (i, count) for word, (i, count) in enumerate(self.vcounts)}
-        self.vocab = {i:word for word, i in enumerate(set(self.words))}
+        for word in tokenized:
+            if word not in self.vocab:
+                self.vocab[word] = len(self.vocab) 
 
     def get_vocab(self):
         return self.vocab
@@ -39,9 +30,10 @@ class make_embeddings:
     def __init__(self,  corpus = [], vocab = {}):
 
         self.vocab = vocab #vocab is assumed to be a dictionary
-        self.vocab_size = len(self.vocab.keys())
-        self.cooccur_mat = np.zeros((self.vocab_size , self.vocab_size), dtype = np.float64)
-
+        self.vocab_size = len(self.vocab)
+        print self.vocab_size
+        self.cooccur_mat = np.zeros((self.vocab_size , self.vocab_size), dtype=np.int32)
+        
         self.corpus = corpus #corpus is assumed to be a list of individual sentences
 
     def add_one_count(self, center_w, context_w):
