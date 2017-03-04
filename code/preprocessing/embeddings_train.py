@@ -1,7 +1,8 @@
 from tokenize_functions import tokenizer, tokenize, append_start_end_tokens
 import os, csv, random, cPickle
 import numpy as np
-from scipy.sparse import csr_matrix
+from scipy.sparse import lil_matrix
+import itertools
 
 class Vocab_Builder:
     def __init__(self):
@@ -31,9 +32,7 @@ class make_embeddings:
 
         self.vocab = vocab #vocab is assumed to be a dictionary
         self.vocab_size = len(self.vocab)
-        print self.vocab_size
-        self.cooccur_mat = np.zeros((self.vocab_size , self.vocab_size), dtype=np.int32)
-        
+        self.cooccur_mat = lil_matrix((self.vocab_size , self.vocab_size), dtype=np.int32)
         self.corpus = corpus #corpus is assumed to be a list of individual sentences
 
     def add_one_count(self, center_w, context_w):
@@ -46,7 +45,6 @@ class make_embeddings:
         return 1
 
     def make_cooccurance_mat(self):
-
         #assume corpus is a list of individual sentences, if windowsize = 0, we take the entire sentence as the window
         #tokenize the entire corpus by sentence first;
         for i, line in enumerate(self.corpus):
@@ -74,7 +72,8 @@ class make_embeddings:
 
         #define cost J: which is = w_i^Tw_j + b_i + b^_j - log(x_ij) where b^ is the context bias of word j and b is the center bias of word
         cost = 0
-        non_zero_inds = zip(self.nonzero[0], self.nonzero[1])
+
+        non_zero_inds = zip(self.nonzeros[0], self.nonzeros[1])
         np.random.shuffle(non_zero_inds)
 
         for (i, j) in non_zero_inds:
@@ -101,10 +100,14 @@ class make_embeddings:
 
         #calculate weight matrix of f(x_ij)
         self.fx_ij = self.cooccur_mat.copy()
-        f = np.vectorize(self.weight_func)
-        self.nonzero = np.nonzero(self.cooccur_mat>0) #indices with nonzero entries
+        self.fx_ij_cx = self.fx_ij.tocoo()
 
-        self.fx_ij[self.nonzero] = f(self.cooccur_mat[self.nonzero], a = a, x_max = x_max)
+        for row, col, dat in itertools.izip(self.fx_ij_cx.row, self.fx_ij_cx.col, self.fx_ij_cx.data):
+            self.fx_ij[row, col] = self.weight_func(dat, a, x_max)
+
+        #get a list of indices for nonzero elements:
+        self.nonzeros = self.fx_ij.nonzero()
+
 
         #generate W matrix of size 2*vocab, 0:vocab = center words, vocab +1:2*vocab are context words
         self.W = np.random.rand(2*self.vocab_size, v_dim)
