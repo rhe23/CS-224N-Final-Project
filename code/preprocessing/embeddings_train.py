@@ -12,7 +12,7 @@ class Vocab_Builder:
         tokenized = append_start_end_tokens(tokenized)
         for word in tokenized:
             if word not in self.vocab:
-                self.vocab[word] = len(self.vocab) 
+                self.vocab[word] = len(self.vocab)
 
     def get_vocab(self):
         return self.vocab
