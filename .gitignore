@@ -6,4 +6,4 @@
 *.bbl
 *.bcf
 *~
-~.pyc
+*.pyc

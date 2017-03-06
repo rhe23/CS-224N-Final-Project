@@ -17,9 +17,9 @@ class Vocab_Builder:
     def get_vocab(self):
         return self.vocab
 
-    def export(self, path = os.getcwd()):
-
-        with open(path + 'vocab.csv', 'wb') as csvfile:
+    # export vocab as csv
+    def export(self, file_path):
+        with open('file_path', 'wb') as csvfile:
             writer = csv.writer(csvfile)
             for k, v in self.vocab.items():
                 writer.writerow([v, k])
