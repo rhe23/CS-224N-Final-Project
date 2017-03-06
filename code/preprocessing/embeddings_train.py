@@ -20,7 +20,7 @@ class Vocab_Builder:
 
     # export vocab as csv
     def export(self, file_path):
-        with open('file_path', 'wb') as csvfile:
+        with open(file_path, 'wb') as csvfile:
             writer = csv.writer(csvfile)
             for k, v in self.vocab.items():
                 writer.writerow([v, k])
