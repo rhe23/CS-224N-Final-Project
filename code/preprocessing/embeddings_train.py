@@ -2,6 +2,7 @@ from tokenize_functions import tokenizer, tokenize, append_start_end_tokens
 import os, csv, random, cPickle, copy, itertools
 import numpy as np
 from collections import defaultdict, Counter
+import time
 
 class Vocab_Builder:
     def __init__(self):
@@ -160,7 +161,7 @@ class make_embeddings:
 
         return cost
 
-    def train(self, iters, v_dim, a, x_max, batch_size = 128, batch =True):
+    def train(self, iters, v_dim, a, x_max, batch_size = 128, batch =True, save_intermediate_path=None):
         #how many iterations to run, and the dimension of the vectors to be trained
 
         #calculate weight matrix of f(x_ij)
@@ -187,14 +188,22 @@ class make_embeddings:
         self.test()
         if batch:
             for i in range(iters):
+                start = time.clock()
                 cost = self.minimize_batch(batch_size=batch_size)
-
+                end = time.clock()
                 print "Cost for Iteration " + str(i) + " : " + str(cost)
+                print "Time elapsed: {}s".format(end - start)
+                if save_intermediate_path:
+                    if i % 10 == 0:
+                        self.save_weights(save_intermediate_path + "_iter{}".format(i))
         else :
 
             for i in range(iters):
+                start = time.clock()
                 cost = self.minimize()
+                end = time.clock()
                 print "Cost for Iteration " + str(i) + " : " + str(cost)
+                print "Time elapsed: {}s".format(end - start)
 
     def get_weights(self):
         return self.W
