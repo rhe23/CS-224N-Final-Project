@@ -31,6 +31,6 @@ if __name__ == "__main__":
     vocab = make_vocab(input_file, vocab_output_file)
     #embeddings:
     glove_trainer = make_embeddings(corpus = corpus, vocab = vocab)
-    glove_trainer.make_cooccurance_mat()
+    glove_trainer.make_cooccurrence_mat()
     glove_trainer.train(iters = num_iters, v_dim = 25, a = 0.75, x_max = 100)
     glove_trainer.save_weights(weights_output_file)
