@@ -19,18 +19,20 @@ def make_vocab(path):
     return vocab_builder.get_vocab()
 
 corpus = make_corpus(path)
-print len(corpus)
 vocab = make_vocab(path)
-print len(vocab)
 #embeddings:
 glove_trainer = make_embeddings(corpus = corpus, vocab = vocab)
-glove_trainer.make_cooccurance_mat()
+glove_trainer.make_cooccurrence_mat()
 glove_trainer.train(iters=100, v_dim= 25, a = 0.75, x_max=100)
+print "science:"
+print glove_trainer.get_similar('science', 100)
+print "and:"
+print glove_trainer.get_similar('and', 100)
 # # W = glove_trainer.get_weights()
 # glove_trainer.save_weights('/home/lel/cs224n/Project/CS-224N-Final-Project/data/test_weight.pkl')
 
 # if __name__ == "__main__":
-# 	if len(sys.argv != 4):
+# 	if len(sys.argv != 4):code/preprocessing/processing.py:19
 # 		print "Usage: python processing.py <input-file> <weights-output-file> <num-iters>"
 #
 # 	input_file = sys.argv[1]
