@@ -86,7 +86,8 @@ class make_embeddings:
             context_inds = [b[1] + self.vocab_size for b in batch]
             new_batch_inds = zip(center_inds, context_inds)
             #make cooccurences into a matrix
-            J =  np.array([self.W[i].dot(self.W[j]) for i,j in new_batch_inds]) + self.b[center_inds] + self.b[context_inds] - np.array([self.coccurrence_mat[i][j] for (i, j) in new_batch_inds])
+            J =  np.array([self.W[i].dot(self.W[j]) for i,j in new_batch_inds]) + self.b[center_inds] \
+                + self.b[context_inds] - np.log(np.array([self.coccurrence_mat[i][j] for (i, j) in new_batch_inds]))
 
             f_x_ij_vec = [self.fx[i][j] for i, j in batch]
 
