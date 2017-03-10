@@ -19,7 +19,7 @@ with open(address + 'all_2015_titles') as file:
     i = 0
     for row in file:
         temp = row.split(' ||||| ')
-        data.append((temp[0], tokenize(temp[1])))
+        data.append( (temp[0], tokenize( temp[1].lower() ) ) )
             
 # Pickle and save the new dictionary
 file = open(address + '2015_data', 'wb')
