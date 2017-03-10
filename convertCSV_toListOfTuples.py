@@ -28,5 +28,5 @@ file.close()
 
 # Import pickled dictionary for testing
 file = open(address + '2015_data', 'r')
-test_dict = pickle.load(file)
+test_data = pickle.load(file)
 file.close()
