@@ -22,6 +22,7 @@ import tensorflow as tf
 import functools
 import pickle
 import random
+import time
 
 
 # Code recycled from hw3
@@ -37,7 +38,7 @@ def pad_sequences(data, max_length):
         while len(new_sentence) < max_length:
             new_sentence.append(zero_vector)
         X_2.append(new_sentence[:max_length])
-    data['x'] = X_2
+    data['x'] = np.array(X_2)
     return data
 
 # takes in data in [(subreddit, [sentence_list]),...] format and converts to 
@@ -61,8 +62,8 @@ def convert_to_XY(data, word_dict):
     for subreddit, sentence in data:
         Y.append(sub_dict[subreddit])
         X.append([word_dict[j] for j in sentence])
-    data_2['x'] = X
-    data_2['y'] = Y
+    data_2['x'] = np.array(X)
+    data_2['y'] = np.array(Y)
     return data_2
          
         
@@ -115,32 +116,52 @@ def lazy_property(function):
     return wrapper
 
 
-class classification:
+class Config:
+    def __init__(self, sample_size, class_size, embed_length, max_sentence_length):
+        self.sample_size = sample_size
+        self.class_size = class_size
+        self.embed_length = embed_length
+        self.max_sentence_length = max_sentence_length
     
-    def __init__(self, data, target, dropout, num_hidden = 200, num_layers = 20, learning_rate = 0.003):
+    
+    
+class Classification:
+    
+    def __init__(self, config, embeddings, data, target, dropout, num_hidden = 200, learning_rate = 0.003):
+        self.config = config
         self.data = data
+        self.embeddings = embeddings
         self.target = target
         self.dropout = dropout
         self._num_hidden = num_hidden
-        self._num_layers = num_layers
         self.learning_rate = learning_rate
         self.prediction
+        
+    @lazy_property
+    def embed_input(self):
+        embed_input = tf.constant(self.embeddings)
+        embed_input = tf.nn.embedding_lookup(embed_input, self.data)
+        embed_input = tf.reshape(embed_input, [-1, self.config.max_sentence_length, self.config.embed_length]) 
+        embed_input = tf.cast(embed_input, tf.float32)
+        return(embed_input)
+        
         
     @lazy_property
     def prediction(self):
         # define LSTM cell
         lstm = tf.nn.rnn_cell.LSTMCell(self._num_hidden)
+        #lstm = tf.nn.rnn_cell.BasicLSTMCell(self._num_hidden)
         # Implement a dropout regularization on cell outputs 
         lstm = tf.nn.rnn_cell.DropoutWrapper(lstm, output_keep_prob = self.dropout)
         # Link together (num_layers) number of cells to form the temporal model
-        lstm = tf.nn.rnn_cell.MultiRNNCell([lstm] * self._num_layers)
+        lstm = tf.nn.rnn_cell.MultiRNNCell([lstm] * self.config.max_sentence_length)
         # Create neaural network from cell
-        output, _ = tf.nn.dynamic_rnn(lstm, self.data, dtype = tf.float32)
+        output, _ = tf.nn.dynamic_rnn(lstm, self.embed_input, dtype = tf.float32)
         # Select last output for classification
         # Change output from [sample][time][dim_output] to [time][sample][dim_output]
         output = tf.transpose(output, [1,0,2])
         # Gather last output slice
-        last_out = tf.gather(output, ( int(output.getshape()[0]) - 1) )
+        last_out = tf.gather(output, ( int(output.get_shape()[0]) - 1) )
         weight, bias = self._initialize_weight_bias(self._num_hidden, 
                                                int(self.target.get_shape()[1]) )
         prediction = tf.nn.softmax( tf.matmul(last_out, weight) + bias )
@@ -153,7 +174,8 @@ class classification:
         
     @lazy_property
     def optimize(self):
-        opt = tf.train.AdamOptimizer(learning_rate = self.learning_rate)
+        #opt = tf.train.AdamOptimizer(learning_rate = self.learning_rate)
+        opt = tf.train.GradientDescentOptimizer(self.learning_rate)
         return(opt.minimize(self.cost))
         
     @lazy_property
@@ -161,23 +183,21 @@ class classification:
         incorrect = tf.not_equal(tf.argmax(self.prediction, axis = 1), 
                                  tf.argmax(self.target, axis = 1))
         return tf.reduce_mean( tf.cast(incorrect, tf.float32) )
-        
+          
     # @static method used because function doesn't require instance "self"
     @staticmethod
     def _initialize_weight_bias(input_length, output_length):
-        weight = tf.get_variable("weight", shape = [input_length, output_length],\
+        # look at this closer
+        weight = tf.get_variable("weight_2", shape = [input_length, output_length],\
             initializer=tf.contrib.layers.xavier_initializer() )
-        bias = tf.get_variable("bias", shape = [output_length], \
+        bias = tf.get_variable("bias_2", shape = [output_length], \
             initializer=tf.constant_initializer(0) )
         return weight, bias
+
+
         
         
- 
-        
-        
-        
-        
-      
+'''      
 # Load embeddings
 # Data address
 address = r'/Users/tylerchase/Documents/Stanford_Classes/CS224n_Natural_Language_Processing_with_Deep_Learning/final project/data//'
@@ -185,7 +205,7 @@ embeddings = np.load(address + 'large_weights.pkl_iter100')
 with open(address + 'embedding_dict') as input:
     embedAddress_dict = pickle.load(input)
     
-    
+   
 # Model parameters
 epoch_size = 10
 minibatch_size = 100
@@ -197,26 +217,28 @@ train, dev, test = import_dataset(address + '2015_data', embedAddress_dict, max_
 
 sample_size, class_size = np.shape(train['y'])
 data = tf.placeholder(tf.int32, [None, max_sentence_length, embed_length])
-target = tf.placeholder(tf.int32, [None, class_size])
+target = tf.placeholder(tf.float32, [None, class_size])
 dropout = tf.placeholder(tf.float32)   
-embeddings = tf.Variable(embeddings)
+embeddings = tf.constant(embeddings)
 embeddings = tf.nn.embedding_lookup(embeddings, data)
 embeddings = tf.reshape(embeddings, [-1, max_sentence_length, embed_length]) 
-model = classification(data, target, dropout)
+print(embeddings.get_shape())
+embeddings = tf.cast(embeddings, tf.float32)
+model = classification(embeddings, target, dropout)
 sess = tf.Session()
 sess.run( tf.global_variables_initializer() )
-for epoch in epoch_size:
+for epoch in xrange(epoch_size):
     for i in np.arange(0, sample_size, minibatch_size):
-        batch_x = train['x'][i:(i+minibatch_size),:]
-        batch_y = train['y'][i:(i+minibatch_size),:]
+        batch_x = train['x'][i:i+minibatch_size]
+        batch_y = train['y'][i:i+minibatch_size]
         sess.run(model.optimize, 
                  {data:batch_x, target:batch_y, dropout:dropout_const} )
     error = sess.run(model.error, 
                      {data:test.data, target:test.target, dropout:1} )
     print('Epoch:{:2d}), Error:{:3.1f}%'.format( (epoch + 1), (100*error))) 
- 
-        
 '''
+        
+
 def main():
     
     # Load embeddings
@@ -225,39 +247,49 @@ def main():
     embeddings = np.load(address + 'large_weights.pkl_iter100')
     with open(address + 'embedding_dict') as input:
         embedAddress_dict = pickle.load(input)
-    
-    
+      
     # Model parameters
     epoch_size = 10
     minibatch_size = 100
     dropout_const = 0.5
     max_sentence_length = 20
-    
-    train, dev, test = import_dataset(address + '2015_data', embedAddress_dict)
+
+    # Call function to import data
+    # replace subreddits with one hot vectors
+    # replace list of words with list of embedding matrix addresses
+    train, dev, test = import_dataset(address + '2015_data', embedAddress_dict, max_sentence_length)
+
     sample_size, class_size = np.shape(train['y'])
-    _, _, embed_length = np.shape(train['x'])
-    data = tf.placeholder(tf.float32, [None, max_sentence_length, embed_length])
+    _, embed_length = np.shape(embeddings)
+    config = Config(sample_size, class_size, embed_length, max_sentence_length)
+    data = tf.placeholder(tf.int32, [None, max_sentence_length])
     target = tf.placeholder(tf.float32, [None, class_size])
     dropout = tf.placeholder(tf.float32)   
-    embeddings = tf.Variable(embeddings)
-    embeddings = tf.nn.embedding_lookup(embeddings, data)
-    embeddings = tf.reshape(embeddings, [-1, max_sentence_length, embed_length]) 
-    model = classification(data, target, dropout)
+    model = Classification(config, embeddings, data, target, dropout)
     sess = tf.Session()
     sess.run( tf.global_variables_initializer() )
-    for epoch in epoch_size:
+    #sess.run( tf.initialize_all_variables() )
+    for epoch in xrange(epoch_size):
+        start_epoch = time.clock()
+        j = 0
         for i in np.arange(0, sample_size, minibatch_size):
-            batch = train[i:(i+minibatch_size),:,:]
+            start_batch = time.clock()
+            batch_x = train['x'][i:i+minibatch_size,:]
+            batch_y = train['y'][i:i+minibatch_size,:]
             sess.run(model.optimize, 
-                     {data:batch.data, target:batch.target, dropout:dropout_const} )
+                     {data:batch_x, target:batch_y, dropout:dropout_const} )
+            batch_time = time.clock() - start_batch
+            batches = int(sample_size/minibatch_size)
+            print("Batch {:d}/{:d} of epoch {:d} finished in {:f} seconds".format(j, batches, epoch, batch_time))
+            j+=1
+        epoch_time = time.clock - start_epoch
+        print("Epoch {:d} finished in {:f} seconds".format(epoch, epoch_time))
         error = sess.run(model.error, 
-                         {data:test.data, target:test.target, dropout:1} )
-        print('Epoch:{:2d}), Error:{:3.1f}%'.format( (epoch + 1), (100*error))) 
+                     {data:test['x'], target:test['y'], dropout:1} )
+        print('Epoch:{:2d}, Error:{:3.1f}%'.format( (epoch + 1), (100*error)))
         
-        
-    
-    
+           
 # Run main() if current namespace is main
 if __name__ == '__main__':
     main()
-'''
+
