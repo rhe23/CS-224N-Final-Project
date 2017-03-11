@@ -139,7 +139,7 @@ class Classification:
         
     @lazy_property
     def embed_input(self):
-        embed_input = tf.constant(self.embeddings)
+        embed_input = tf.Variable(self.embeddings)
         embed_input = tf.nn.embedding_lookup(embed_input, self.data)
         embed_input = tf.reshape(embed_input, [-1, self.config.max_sentence_length, self.config.embed_length]) 
         embed_input = tf.cast(embed_input, tf.float32)
@@ -261,6 +261,7 @@ def main():
 
     sample_size, class_size = np.shape(train['y'])
     _, embed_length = np.shape(embeddings)
+    batches = int(sample_size/minibatch_size)
     config = Config(sample_size, class_size, embed_length, max_sentence_length)
     data = tf.placeholder(tf.int32, [None, max_sentence_length])
     target = tf.placeholder(tf.float32, [None, class_size])
@@ -272,21 +273,24 @@ def main():
     for epoch in xrange(epoch_size):
         start_epoch = time.clock()
         j = 0
+        start_batch = time.clock()
         for i in np.arange(0, sample_size, minibatch_size):
-            start_batch = time.clock()
             batch_x = train['x'][i:i+minibatch_size,:]
             batch_y = train['y'][i:i+minibatch_size,:]
             sess.run(model.optimize, 
                      {data:batch_x, target:batch_y, dropout:dropout_const} )
-            batch_time = time.clock() - start_batch
-            batches = int(sample_size/minibatch_size)
-            print("Batch {:d}/{:d} of epoch {:d} finished in {:f} seconds".format(j, batches, epoch, batch_time))
+            if not j%100:
+                batch_time = time.clock() - start_batch
+                start_batch = time.clock()
+                print("Batch {:d}/{:d} of epoch {:d} finished in {:f} seconds".format(j, batches, (epoch+1), batch_time))
             j+=1
-        epoch_time = time.clock - start_epoch
+        epoch_time = time.clock() - start_epoch
         print("Epoch {:d} finished in {:f} seconds".format(epoch, epoch_time))
-        error = sess.run(model.error, 
+        error_test = sess.run(model.error, 
                      {data:test['x'], target:test['y'], dropout:1} )
-        print('Epoch:{:2d}, Error:{:3.1f}%'.format( (epoch + 1), (100*error)))
+        error_train = sess.run(model.error, 
+                     {data:train['x'], target:train['y'], dropout:1})
+        print('Epoch:{:2d}, Training Error {:3.1f}%, Test Error:{:3.1f}%'.format( (epoch + 1), (100*error_train), (100*error_test)))
         
            
 # Run main() if current namespace is main
