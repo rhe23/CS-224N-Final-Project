@@ -34,7 +34,6 @@ def add_padding(max_length, sentences, num_vocab):
 
 def get_batch(data_size, batch_size, shuffle=True):
 #returns a list of indices for each batch of data during optimization
-    print data_size
     data_indices = np.arange(data_size)
     np.random.shuffle(data_indices)
 
@@ -78,19 +77,19 @@ def generate_padded_seq(max_length, vocab_length, sentences):
 
 class RNN_LSTM:
 
-    def __init__(self, embeddings, x, y, config, data_size):
+    def __init__(self, embeddings, config):
 
-        self.data_size = data_size
+        # self.data_size = data_size
         self.config = config
         self.pretrain_embeddings = embeddings
 
-        idx = list(range(data_size))
+        # idx = list(range(data_size))
 
-        train_inds, dev_inds, test_inds  = get_dev_test_sets(dev_size = self.config.dev_set_size, test_size = self.config.test_set_size, training_indices = idx)
-
-        self.train_x, self.dev_x, self.test_x = x[train_inds],  x[dev_inds], x[test_inds]
-
-        self.train_y, self.dev_y, self.test_y = y[train_inds],  y[dev_inds], y[test_inds]
+        # train_inds, dev_inds, test_inds  = get_dev_test_sets(dev_size = self.config.dev_set_size, test_size = self.config.test_set_size, training_indices = idx)
+        #
+        # self.train_x, self.dev_x, self.test_x = x[train_inds],  x[dev_inds], x[test_inds]
+        #
+        # self.train_y, self.dev_y, self.test_y = y[train_inds],  y[dev_inds], y[test_inds]
 
         # #build model steps
         self.add_placeholders() #initiate placeholders
@@ -227,12 +226,15 @@ class RNN_LSTM:
 
         return tf.reduce_mean(incorrect)
 
-    def run_epoch(self, sess, get_error = False):
 
-        training_size = len(self.train_x)
+    def run_epoch(self, sess, train_x, get_error = False):
+
+        training_size = len(train_x)
 
         for i, indices in enumerate(get_batch(training_size, self.config.batch_size)):
-            trainx = self.train_x[indices]
+
+            trainx = train_x[indices]
+
             # trainy = self.train_y[indices]
             loss = self.train_on_batch(sess, trainx)
             print ("Batch " + str(i) + " Loss: " + str(loss))
@@ -277,20 +279,20 @@ def main():
     def get_indices(sent):
         return [vocabs[i] for i in sent]
 
-    subsample_x = [get_indices(j) for j in all_dat['personalfinance']][0:10]
-    subsample_y = [get_indices(j) for j[1:] in all_dat['personalfinance']][0:10]
+    subsample_x = [get_indices(j) for j in all_dat['personalfinance']][0:100]
+    # subsample_y = [get_indices(j) for j[1:] in all_dat['personalfinance']][0:100]
     max_length = max(len(i) for i in subsample_x)
 
     #seq_length, max_length, embed_size, output_size
     c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 1)
-    m = RNN_LSTM(embeddings = embeddings, x= np.array(subsample_x), y = np.array(subsample_y), config= c, data_size=len(subsample_x))
+    m = RNN_LSTM(embeddings = embeddings, config = c)
     init = tf.global_variables_initializer()
     saver = tf.train.Saver()
     with tf.Session() as sess:
         sess.run(init)
         for i in range(n_epochs):
             print "Epoch: " + str(i)
-            m.run_epoch(sess)
+            m.run_epoch(sess, train_x = np.array(subsample_x))
 
 if __name__ == '__main__':
     main()
