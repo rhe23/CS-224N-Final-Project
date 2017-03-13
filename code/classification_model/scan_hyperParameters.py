@@ -53,7 +53,7 @@ fig, (ax1) = plt.subplots()
 ax1.plot(value_list, error['train'], label = "training error")
 ax1.plot(value_list, error['test'], label = "test error")
 plt.legend(loc='upper right')
-savefig(address + 'errors.png', bbox_inches='tight')
+plt.savefig(address + 'errors.png', bbox_inches='tight')
     
 
     
