@@ -23,13 +23,13 @@ first_value = 0
 second_value = 1
 step_size = 0.1
 
+value_list = np.arange(first_value,second_value + step_size,step_size)
 if not saved:
     # Generate training and test error across different dropout constants of LSTM
     # classification model
     error = {}
     train_error = []
     test_error = []
-    value_list = np.arange(first_value,second_value + step_size,step_size)
     for dropout_const in value_list:
         temp_1, temp_2 = LSTM_classifier.run_classifier(address, epoch_size = 10, \
             dropout_const = dropout_const, train_percent = 10, dev_percent = 80)
