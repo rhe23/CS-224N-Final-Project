@@ -34,7 +34,8 @@ def add_padding(max_length, sentences, num_vocab):
 
 def get_batch(data_size, batch_size, shuffle=True):
 #returns a list of indices for each batch of data during optimization
-    data_indices = np.arrange(data_size)
+    print data_size
+    data_indices = np.arange(data_size)
     np.random.shuffle(data_indices)
 
     for i in xrange(0, data_size, batch_size):
@@ -58,7 +59,6 @@ def get_masks(sentences, max_length):
 class Config:
 
     def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 10, batch_size = 256, n_epochs = 10):
-        self.batch_size=96
         self.dev_set_size =0.1
         self.test_set_size = 0.1
         self.classify= False #determines if we're running a classification
@@ -88,18 +88,15 @@ class RNN_LSTM:
 
         train_inds, dev_inds, test_inds  = get_dev_test_sets(dev_size = self.config.dev_set_size, test_size = self.config.test_set_size, training_indices = idx)
 
-        self.training_set, self.dev_set, self.test_set = x[train_inds],  x[dev_inds], x[test_inds]
+        self.train_x, self.dev_x, self.test_x = x[train_inds],  x[dev_inds], x[test_inds]
 
         self.train_y, self.dev_y, self.test_y = y[train_inds],  y[dev_inds], y[test_inds]
-
-        self.vocab_by_inds = list(xrange(0, self.config.output_size))
 
         # #build model steps
         self.add_placeholders() #initiate placeholders
         self.pred = self.prediction() #forward prop
         self.loss = self.calc_loss(self.pred) #calculate loss
-        # self.train = self.back_prop(self.loss) #optimization step
-
+        self.train_op = self.back_prop(self.loss) #optimization step
 
     def add_placeholders(self):
 
@@ -131,8 +128,8 @@ class RNN_LSTM:
 
     def test_session(self, session): #diagnostic for testing pieces of the model
         #take random sample of training set:
-        inds = np.random.choice(self.training_set, math.floor(0.01*len(self.training_set)), replace=False)
-
+        # inds = np.random.choice(self.training_set, math.floor(0.01*len(self.training_set)), replace=False)
+        inds = self.training_set
         small_s = generate_padded_seq(self.config.max_length, self.config.output_size, inds)
         small_s_y = [i[1:] for i in small_s]
         seq_len = [len(i) for i in inds]
@@ -155,40 +152,40 @@ class RNN_LSTM:
         self.cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.hidden_unit_size, input_size=self.config.batch_size,
                                                 initializer=tf.contrib.layers.xavier_initializer())
         self.cell = tf.nn.rnn_cell.DropoutWrapper(cell = self.cell, output_keep_prob=self.dropout_placeholder)
-        # self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
+        self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
 
     def prediction(self): #main training function for the model
-
         #sets up the construction of the graphs such that when session is called these operations will run
-
         preds = []
         self.add_embeddings()
         self.set_cell()
         # state = tf.Variable(self.cell.zero_state(self.config.batch_size, dtype = tf.float32), trainable=False) #initial state
 
         outputs, states = tf.nn.dynamic_rnn(self.cell, inputs = self.x, dtype = tf.float32, sequence_length=self.sequence_placeholder)
-        outputs = tf.transpose(outputs, [1,0,2])
-
-        W = tf.get_variable("W2", shape = [self.config.hidden_unit_size, self.config.output_size], initializer=tf.contrib.layers.xavier_initializer() )
-        b = tf.get_variable("b2", shape = [self.config.output_size], initializer=tf.constant_initializer(0) )
-
-        for time_step in range(self.config.max_length):
-            out = tf.gather(outputs, ( time_step ) )
-            y_t = tf.nn.softmax( tf.matmul(out, W) + b )
-            preds.append(y_t)
-
-        preds = tf.pack(preds, axis=1)
-
+        # outputs = tf.transpose(outputs, [1,0,2])
+        #
+        # W = tf.get_variable("W2", shape = [self.config.hidden_unit_size, self.config.output_size], initializer=tf.contrib.layers.xavier_initializer() )
+        # b = tf.get_variable("b2", shape = [self.config.output_size], initializer=tf.constant_initializer(0) )
+        #
+        # for time_step in range(self.config.max_length):
+        #     out = tf.gather(outputs, ( time_step ) )
+        #     y_t = tf.matmul(out, W) + b
+        #     preds.append(y_t)
+        #
+        # preds = tf.pack(preds, axis=1)
+        preds = outputs
         return preds
 
     def calc_loss(self, preds):
+        #preds is of the form: (batch_size, max_length, output_size)
+        #preds[:, time_step,: ] = batch_size x output_size
         #calculate loss across every pair of words
         # one_hot_mats = tf.one_hot(self.vocab_by_inds, depth = self.config.batch_size, axis = 0)
         #
         loss = 0
-        # print loss
+
         for time_step in range(self.config.max_length-1):
-            loss += tf.nn.sparse_softmax_cross_entropy_with_logits(preds[:, time_step, :], self.labels_placeholder[:,time_step])
+            loss += tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(preds[:, time_step, :], self.labels_placeholder[:,time_step]))
             # one_hot = tf.transpose(tf.gather(one_hot_mats, self.labels_placeholder[:,time_step]))
             # loss += -tf.reduce_sum(tf.matmul(tf.log(preds[:, time_step, :]), one_hot))
 
@@ -201,50 +198,99 @@ class RNN_LSTM:
 
     def back_prop(self, loss):
 
-        optimizer = tf.train.AdamOptimizer(learning_rate=self.config.learning_rate)
+        optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.config.learning_rate)
         train_op = optimizer.minimize(loss)
 
         return train_op
-    #
-    # def fit(self, sess, saver, train_examples, dev_set):
-    #
-    #     best_dev_UAS = 0
-    #     for epoch in range(self.config.n_epochs):
-    #         print "Epoch {:} out of {:}".format(epoch + 1, self.config.n_epochs)
-    #         dev_UAS = self.run_epoch(sess, parser, train_examples, dev_set)
-    #         if dev_UAS > best_dev_UAS:
-    #             best_dev_UAS = dev_UAS
-    #             if saver:
-    #                 print "New best dev UAS! Saving model in ./data/weights/parser.weights"
-    #                 saver.save(sess, './data/weights/parser.weights')
-    #         print
 
-embeddings = get_embeddings()
-embeddings = np.vstack([embeddings, np.zeros(embeddings.shape[1])])
-all_dat = collections.defaultdict(list)
-raw_data =  get_data(path = './data/2015_data')
-for r, post in raw_data:
-    all_dat[r].append(post)
+    def train_on_batch(self, sess, batch_indices):
 
-vocabs = collections.defaultdict(str)
+        batch_x= generate_padded_seq(self.config.max_length, self.config.output_size, batch_indices)
+        batch_y = [i[1:] for i in batch_x]
+        seq_len = [len(i) for i in batch_indices]
+        masks = get_masks(batch_indices, self.config.max_length)
 
-with open('./data/large_vocab.csv') as csvfile:
-    vocab = csv.reader(csvfile)
-    for v in  vocab:
-        vocabs[v[1]] = v[0]
+        feed = self.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= self.config.drop_out, mask_batch=masks, seq_length = seq_len)
 
-def get_indices(sent):
-    return [vocabs[i] for i in sent]
+        _, loss = sess.run([self.train_op, self.loss], feed_dict=feed)
+        # loss = sess.run([self.pred], feed_dict=feed)
+        return loss
 
-subsample_x = [get_indices(j) for j in all_dat['personalfinance']]
-subsample_y = [get_indices(j) for j[1:] in all_dat['personalfinance']]
-max_length = max(len(i) for i in subsample_x)
+    def get_error(self, sess):
 
-#seq_length, max_length, embed_size, output_size
-c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 96)
-m = RNN_LSTM(embeddings = embeddings, x= np.array(subsample_x), y = np.array(subsample_y), config= c, data_size=len(subsample_x))
-init = tf.global_variables_initializer()
-with tf.Session() as sess:
-    sess.run(init)
-    loss = m.test_session(sess)
-    print loss
+        incorrect = 0
+
+        for time_step in range(self.config.max_length-1):
+
+            incorrect +=tf.not_equal(tf.argmax(self.pred[:, time_step, :], axis = 0),
+                                 self.labels_placeholder[:,time_step])
+
+        return tf.reduce_mean(incorrect)
+
+    def run_epoch(self, sess, get_error = False):
+
+        training_size = len(self.train_x)
+
+        for i, indices in enumerate(get_batch(training_size, self.config.batch_size)):
+            trainx = self.train_x[indices]
+            # trainy = self.train_y[indices]
+            loss = self.train_on_batch(sess, trainx)
+            print ("Batch " + str(i) + " Loss: " + str(loss))
+
+        if get_error == True:
+            train_x = generate_padded_seq(self.config.max_length, self.config.output_size, self.train_x)
+            train_y = [i[1:] for i in train_x]
+            seq_len = [len(i) for i in self.train_x]
+            masks = get_masks(self.train_x, self.config.max_length)
+
+            train_feed = self.create_feed_dict(inputs_batch=train_x, labels_batch= train_y, dropout= self.config.drop_out, mask_batch=masks, seq_length = seq_len)
+            trainerror = sess.run([self.get_error], feed_dict=train_feed)
+
+            print "training error: " + str(trainerror)
+
+            test_x = generate_padded_seq(self.config.max_length, self.config.output_size, self.test_x)
+            test_y = [i[1:] for i in test_x]
+            seq_len_test = [len(i) for i in self.test_x]
+            masks_test = get_masks(self.test_x, self.config.max_length)
+
+            test_feed = self.create_feed_dict(inputs_batch=test_x, labels_batch= test_y, dropout= self.config.drop_out, mask_batch=masks_test, seq_length = seq_len_test)
+            testerror = sess.run([self.get_error], feed_dict=test_feed)
+
+            print "test error: " + str(testerror)
+
+def main():
+    n_epochs = 20
+    embeddings = get_embeddings()
+    embeddings = np.vstack([embeddings, np.zeros(embeddings.shape[1])])
+    all_dat = collections.defaultdict(list)
+    raw_data =  get_data(path = './data/2015_data')
+    for r, post in raw_data:
+        all_dat[r].append(post)
+
+    vocabs = collections.defaultdict(str)
+
+    with open('./data/large_vocab.csv') as csvfile:
+        vocab = csv.reader(csvfile)
+        for v in  vocab:
+            vocabs[v[1]] = v[0]
+
+    def get_indices(sent):
+        return [vocabs[i] for i in sent]
+
+    subsample_x = [get_indices(j) for j in all_dat['personalfinance']][0:10]
+    subsample_y = [get_indices(j) for j[1:] in all_dat['personalfinance']][0:10]
+    max_length = max(len(i) for i in subsample_x)
+
+    #seq_length, max_length, embed_size, output_size
+    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 1)
+    m = RNN_LSTM(embeddings = embeddings, x= np.array(subsample_x), y = np.array(subsample_y), config= c, data_size=len(subsample_x))
+    init = tf.global_variables_initializer()
+    saver = tf.train.Saver()
+    with tf.Session() as sess:
+        sess.run(init)
+        for i in range(n_epochs):
+            print "Epoch: " + str(i)
+            m.run_epoch(sess)
+
+if __name__ == '__main__':
+    main()
