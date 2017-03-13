@@ -32,6 +32,7 @@ if not saved:
             dropout_const = dropout_const, train_percent = 10, dev_percent = 80)
         train_error.append(temp_1)
         test_error.append(temp_2)
+        tf.reset_defaults_graph()
     error['train'] = train_error
     error['test'] = test_error    
     file = open(address + 'errors', 'wb')
