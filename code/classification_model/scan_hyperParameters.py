@@ -7,6 +7,7 @@ This code calls the LSTM classifier and runs it for different hyperparameters
 # Load libraries
 import numpy as np
 import matplotlib.pyplot as plt
+matplotlib.use('Agg')
 import pickle
 import tensorflow as tf
 # Load user library
