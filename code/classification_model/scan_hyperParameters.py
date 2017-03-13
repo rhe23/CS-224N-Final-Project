@@ -15,13 +15,13 @@ import tensorflow as tf
 import LSTM_classifier
 
 # Is the data already saved? and where is it saved?
-saved = 0
+saved = 1
 address = r'/home/cs224n/CS-224N-Final-Project/data//'
 
 # Inputs for dropout constants of interest
 first_value = 0
 second_value = 1
-step_size = 0.1
+step_size = 0.05
 
 value_list = np.arange(first_value,second_value + step_size,step_size)
 if not saved:
@@ -32,7 +32,7 @@ if not saved:
     test_error = []
     for dropout_const in value_list:
         temp_1, temp_2 = LSTM_classifier.run_classifier(address, epoch_size = 10, \
-            dropout_const = dropout_const, train_percent = 10, dev_percent = 80)
+            dropout_const = dropout_const, train_percent = 80, dev_percent = 10)
         train_error.append(temp_1)
         test_error.append(temp_2)
         tf.reset_default_graph()
@@ -52,6 +52,9 @@ else:
 fig, (ax1) = plt.subplots()
 ax1.plot(value_list, error['train'], label = "training error")
 ax1.plot(value_list, error['test'], label = "test error")
+ax1.set_xlabel("dropout constant")
+ax1.set_ylabel("Error")
+ax1.set_title("Regularization Parameter Scan \n Dropout Rate") 
 plt.legend(loc='upper right')
 plt.savefig(address + 'errors.png', bbox_inches='tight')
     
