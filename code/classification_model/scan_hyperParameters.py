@@ -8,6 +8,7 @@ This code calls the LSTM classifier and runs it for different hyperparameters
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+import tensorflow as tf
 # Load user library
 import LSTM_classifier
 
