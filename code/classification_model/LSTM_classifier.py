@@ -21,7 +21,6 @@ import random
 import tensorflow as tf
 import functools
 import pickle
-import random
 import time
 
 # Code recycled from hw3
@@ -215,29 +214,21 @@ class Classification:
         return weight, bias
         
 
-def main():
+def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.185, max_sentence_length=20, layers=1, train_percent = 80, dev_percent = 10):
     
     # Load embeddings
     # Data address
-    address = r'/Users/tylerchase/Documents/Stanford_Classes/CS224n_Natural_Language_Processing_with_Deep_Learning/final project/data//'
     embeddings = np.load(address + 'large_weights.pkl_iter100')
     zeroVecAdd, zeroVecLength = np.shape(embeddings)
     with open(address + 'embedding_dict') as input:
         embedAddress_dict = pickle.load(input)
-      
-    # Model parameters
-    epoch_size = 15
-    minibatch_size = 100
-    dropout_const = 0.1875
-    max_sentence_length = 20
-    layers = 2
 
     # Call function to import data
     # replace subreddits with one hot vectors
     # replace list of words with list of embedding matrix addresses
     train, dev, test = import_dataset(address + '2015_data', embedAddress_dict, 
-                                      max_sentence_length, train_percent = 80,
-                                      dev_percent = 10)
+                                      max_sentence_length, train_percent = train_percent,
+                                      dev_percent = dev_percent)
 
     sample_size, class_size = np.shape(train['y'])
     _, embed_length = np.shape(embeddings)
@@ -274,9 +265,10 @@ def main():
                      {data:train['x'], target:train['y'], dropout:1} )
         print('Epoch:{:2d}, Training Error {:3.1f}%, Test Error:{:3.1f}%'.format( (epoch + 1), (100*error_train), (100*error_test)))
         #print('Epoch:{:2d}, Training Error {:3.1f}%'.format( (epoch + 1), (100*error_train)))
+    return(error_train, error_test)
 
                   
 # Run main() if current namespace is main
 if __name__ == '__main__':
-    main()
+    error_train, error_test = run_classifier(r'/Users/tylerchase/Documents/Stanford_Classes/CS224n_Natural_Language_Processing_with_Deep_Learning/final project/CS-224N-Final-Project/data//')
 
