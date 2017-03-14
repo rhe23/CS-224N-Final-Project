@@ -7,12 +7,11 @@ import scipy.sparse
 import sys
 from operator import itemgetter
 import pycuda.gpuarray as gpuarray
+import pycuda.autoinit
 from pycuda.autoinit import context
 from pycuda.compiler import SourceModule
 
 mod = SourceModule("""
-    #include <math.h>
-
     // Updates matrix A by adding a scalar c multiplied by another matrix B (i.e. A -= c * B)
     // Only operates on the rows specified by batch: A[batch_j] -= lr * B[batch_i]
     // batch is assumed to 1 x p, A and B have q columns, c is a scalar
@@ -29,13 +28,13 @@ mod = SourceModule("""
 
     // Perform the update step for b/b_tilde using gradient descent
     // a[batch_j] -= lr * a[batch_i]
-    __global__ void BatchVecUpdate(const int p, const float lr, float *a, const float *b, const int *batch_i, 
+    __global__ void BatchVecSubtractInplaceKernel(const int p, const float lr, float *a, const float *b, const int *batch_i, 
     const int *batch_j) {
       int batch_index = blockIdx.x * blockDim.x + threadIdx.x;
       if (batch_index >= p) return;
 
-      int ind_a = batch_j[batch_index]
-      int ind_b = batch_i[batch_index]
+      int ind_a = batch_j[batch_index];
+      int ind_b = batch_i[batch_index];
 
       atomicAdd(&a[ind_a], -lr * b[ind_b]);
     }
@@ -50,19 +49,20 @@ mod = SourceModule("""
       int col = blockIdx.x * blockDim.x + threadIdx.x;
       if (col >= q) return;                              
       int row_A = batch_i[batch_index];
-      int row_C = batch_j[batch_index];                                                  
-                                                                                                                       
-      C[row_C * q + col] = A[row_A * q + col] * b[row_A];                                                                    
+      int row_C = batch_j[batch_index];                                    
+                   
+      C[row_C * q + col] = A[row_A * q + col] * b[batch_index];                          
     }          
 
     // Copies the values from vector a to b, operating only on item indices specified by batch
-    // batch is assumed to be 1 x p
+    // b[batch] = a
+    // batch and a are assumed to be 1 x p
     __global__ void BatchCopyVectorKernel(const int p, const float *a, float *b, const int *batch) {
       int batch_index = blockIdx.x * blockDim.x + threadIdx.x;
       if (batch_index >= p) return;
 
-      int ind = batch[batch_index];
-      b[ind] = a[ind];
+      int b_row = batch[batch_index];
+      b[b_row] = a[batch_index];
     }
 
     // weighted_cost_inner calculation
@@ -94,7 +94,7 @@ mod = SourceModule("""
     // cost_inner += self.b[batch_i] + self.b_tilde[batch_j] - np.log(np.array([self.cooccurrence_mat[k] 
     //    for k in range(lower_index, upper_index)]))
     __global__ void BatchCostInnerKernel(const int lower_ind, const int upper_ind, float *cost_inner, 
-    const float *b, const float *b_tilde, const float *cooc_mat, const int *batch_i, const int *batch_j) {
+    const float *b, const float *b_tilde, const int *cooc_mat, const int *batch_i, const int *batch_j) {
       int ind = blockIdx.x * blockDim.x + threadIdx.x;
       int cooc_index = ind + lower_ind;
       if (cooc_index >= upper_ind) return;
@@ -102,13 +102,14 @@ mod = SourceModule("""
       int row_b = batch_i[ind];
       int row_b_tilde = batch_j[ind];
 
-      atomicAdd(&cost_inner[ind], b[row_b] + b_tilde[row_b_tilde] - log(cooc_mat[cooc_index]));
+      atomicAdd(&cost_inner[ind], b[row_b] + b_tilde[row_b_tilde] - logf(cooc_mat[cooc_index]));
     }
     """)
 
 batchMatSubtractInplace = mod.get_function("BatchMatSubtractInplaceKernel")
+batchVecSubtractInplace = mod.get_function("BatchVecSubtractInplaceKernel")
 batchMatVecRowMult = mod.get_function("BatchMatVecRowMultKernel")
-batchCopyVectorKernel = mod.get_function("BatchCopyVectorKernel")
+batchCopyVector = mod.get_function("BatchCopyVectorKernel")
 batchWeightedInnerCost = mod.get_function("BatchWeightedInnerCost")
 batchMatColDot = mod.get_function("BatchMatColDotKernel")
 batchCostInner = mod.get_function("BatchCostInnerKernel")
@@ -144,15 +145,14 @@ class GloveTrainer:
         self.G_b_tilde = None
 
     def export_vocab(self, path):
-        vocab = self.vocab.get()
         with open(path, 'wb') as file:
-            cPickle.dump(vocab, file, protocol=2)
+            cPickle.dump(self.vocab, file, protocol=2)
 
     # export weights as a concatenation of the 2 weights matrices W and W_tilde
     def export_weights(self, path):
         W = self.W.get()
         W_tilde = self.W_tilde.get()
-        concat_weights = np.vstack(W, W_tilde)
+        concat_weights = np.vstack((W, W_tilde))
         with open(path + '.pkl', 'wb') as file:
             cPickle.dump(concat_weights, file, protocol=2)
 
@@ -165,7 +165,7 @@ class GloveTrainer:
 
         # Values for a 1-d grid
         self.blockDim = 512
-        self.numBlocks_x = int(batch_size / self.blockDim) + 1
+        self.numBlocks = int(batch_size / self.blockDim) + 1
 
     def make_vocab_and_cooccurrence_mat(self):
         model = CountVectorizer(ngram_range=(1, 1), tokenizer=tokenize_2)
@@ -182,10 +182,10 @@ class GloveTrainer:
         nonzeros_i, nonzeros_j, vals = scipy.sparse.find(M)
         nonzeros_i = nonzeros_i.tolist()
         nonzeros_j = nonzeros_j.tolist()
-        vals = vals.tolist()
+        vals = vals.astype(np.int32)
         
         self.nonzeros = zip(nonzeros_i, nonzeros_j)
-        self.cooccurrence_mat = gpuarray.to_gpu(np.array(vals))
+        self.cooccurrence_mat = gpuarray.to_gpu(vals)
 
     # train on minibatches
     # opt_method can be adagrad or grad (vanilla gradient descent)
@@ -198,52 +198,60 @@ class GloveTrainer:
             batch = [self.nonzeros[k] for k in range(lower_index, upper_index)]
             batch_i = [index[0] for index in batch]
             batch_j = [index[1] for index in batch]
+            cur_batch_len = np.int32(upper_index - lower_index)
             
             batch_i_gpu = gpuarray.to_gpu(np.array(batch_i, dtype=np.int32))
             batch_j_gpu = gpuarray.to_gpu(np.array(batch_j, dtype=np.int32))
             cost_inner = gpuarray.zeros(batch_size, dtype=np.float32)
-            weighted_cost_inner = gpuarray.zeros_like(cost_inner_gpu)
-
+            weighted_cost_inner = gpuarray.zeros_like(cost_inner)
+            
             # calculate intermediate values
             # cost_inner =  + self.b[batch_i] + \
             #     self.b_tilde[batch_j] - np.log(np.array([self.cooccurrence_mat[k] for k in range(lower_index, upper_index)]))
-            batchMatColDot(batch_size, v_dim, self.W, self.W_tilde, batch_i_gpu, batch_j_gpu, cost_inner, \
+            batchMatColDot(cur_batch_len, self.v_dim, self.W, self.W_tilde, batch_i_gpu, batch_j_gpu, cost_inner, \
                 block=(self.blockDim_x, self.blockDim_y, 1), grid=(self.numBlocks_x, self.numBlocks_y))
             context.synchronize()
+            if lower_index == 0:
+                print cost_inner.get()
             batchCostInner(np.int32(lower_index), np.int32(upper_index), cost_inner, self.b, self.b_tilde, \
-                self.cooccurrence_mat, batch_i, batch_j, block=(self.blockDim, 1, 1), grid=(self.numBlocks, 1))
+                self.cooccurrence_mat, batch_i_gpu, batch_j_gpu, block=(self.blockDim, 1, 1), grid=(self.numBlocks, 1))
+            if lower_index == 0:
+                print cost_inner.get()
             context.synchronize()
             # weighted_cost_inner = np.array([self.f_x[k] for k in range(lower_index_upper_index)]) * cost_inner
             batchWeightedInnerCost(np.int32(lower_index), np.int32(upper_index), self.f_x, cost_inner, weighted_cost_inner, \
                 block=(self.blockDim, 1, 1), grid=(self.numBlocks, 1))
+            if lower_index == 0:
+                print weighted_cost_inner.get()
             context.synchronize()
-
+            
             # calculate the gradients of each parameter
             # self.gradW[batch_i] = (self.W_tilde[batch_j].T * weighted_cost_inner).T
-            batchMatVecRowMult(batch_size, v_dim, self.W_tilde, weighted_cost_inner, self.gradW, batch_j, batch_i, \
+            batchMatVecRowMult(cur_batch_len, self.v_dim, self.W_tilde, weighted_cost_inner, self.gradW, batch_j_gpu, batch_i_gpu, \
                 block=(self.blockDim_x, self.blockDim_y, 1), grid=(self.numBlocks_x, self.numBlocks_y))
             # self.gradW_tilde[batch_j] = (self.W[batch_i].T * weighted_cost_inner).T
-            batchMatVecRowMult(batch_size, v_dim, self.W, weighted_cost_inner, self.gradW_tilde, batch_i, batch_j, \
+            batchMatVecRowMult(cur_batch_len, self.v_dim, self.W, weighted_cost_inner, self.gradW_tilde, batch_i_gpu, batch_j_gpu, \
                 block=(self.blockDim_x, self.blockDim_y, 1), grid=(self.numBlocks_x, self.numBlocks_y))
+                        
             # self.gradb[batch_i] = self.gradb_tilde[batch_j] = weighted_cost_inner
-            batchCopyVector(batch_size, weighted_cost_inner, self.b, batch_i, \
+            batchCopyVector(cur_batch_len, weighted_cost_inner, self.b, batch_i_gpu, \
                 block=(self.blockDim, 1, 1), grid=(self.numBlocks, 1))
-            batchCopyVector(batch_size, weighted_cost_inner, self.b_tilde, batch_j, \
+            batchCopyVector(cur_batch_len, weighted_cost_inner, self.b_tilde, batch_j_gpu, \
                 block=(self.blockDim, 1, 1), grid=(self.numBlocks, 1))
             context.synchronize()
 
             # perform the main parameter updates
             # self.W[batch_i] -= eta * self.gradW[batch_i]
-            batchMatSubtractInplace(batch_size, v_dim, eta, self.W, self.gradW, batch_i, \
+            batchMatSubtractInplace(cur_batch_len, self.v_dim, eta, self.W, self.gradW, batch_i_gpu, \
                 block=(self.blockDim_x, self.blockDim_y, 1), grid=(self.numBlocks_x, self.numBlocks_y))
             # self.W_tilde[batch_j] -= eta * self.gradW_tilde[batch_j]
-            batchMatSubtractInplace(batch_size, v_dim, eta, self.W_tilde, self.gradW_tilde, batch_j, \
+            batchMatSubtractInplace(cur_batch_len, self.v_dim, eta, self.W_tilde, self.gradW_tilde, batch_j_gpu, \
                 block=(self.blockDim_x, self.blockDim_y, 1), grid=(self.numBlocks_x, self.numBlocks_y))
             # self.b[batch_i] -= eta * self.gradb[batch_i]
-            batchVecSubtractInplace(batch_size, eta, self.b, self.gradb, batch_i, \
+            batchVecSubtractInplace(cur_batch_len, eta, self.b, self.gradb, batch_i_gpu, \
                 block=(self.blockDim, 1, 1), grid=(self.numBlocks, 1))
             # self.b_tilde[batch_j] -= eta * self.gradb_tilde[batch_j]      
-            batchVecSubtractInplace(batch_size, eta, self.b_tilde, self.gradb_tilde, batch_j, \
+            batchVecSubtractInplace(cur_batch_len, eta, self.b_tilde, self.gradb_tilde, batch_j_gpu, \
                 block=(self.blockDim, 1, 1), grid=(self.numBlocks, 1))      
             context.synchronize()
 
@@ -309,8 +317,7 @@ class GloveTrainer:
             self.G_b_tilde = gpuarray.to_gpu(np.ones((self.V,), dtype=data_type))
         '''
         self.v_dim = np.int32(v_dim)
-        batch_size = np.int32(batch_size)
-        eta = np.int32(eta)
+        learning_rate = np.float32(learning_rate)
         self.setOptimalBlockAndGridDims(batch_size)
 
         # These values don't have to be recomputed each iteration
