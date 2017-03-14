@@ -176,8 +176,19 @@ class RNN_LSTM:
         # loss = 0
         pred = preds[1] #get the raw predicted not in probability form
 
-        loss =tf.nn.sparse_softmax_cross_entropy_with_logits(labels = self.labels_placeholder, logits = pred)
-        losses =(tf.reduce_sum(tf.boolean_mask(loss, self.mask_placeholder)))
+        losses =tf.reshape(tf.nn.sparse_softmax_cross_entropy_with_logits(labels = self.labels_placeholder, logits = pred), [-1])
+        mask = tf.reshape(self.mask_placeholder[:, 0:self.mask_placeholder.get_shape()[1]-1], [-1])
+        loss = tf.reduce_sum(tf.boolean_mask(losses, mask))
+        # mask = tf.reshape(self.mask_placeholder, [-1])
+        # loss = tf.boolean_mask()
+        # for sample in range(self.config.batch_size):
+
+        #     # losses +=  tf.reduce_sum(tf.boolean_mask(loss[sample, :], self.mask_placeholder[sample,:]))
+        # losses = tf.boolean_mask(tf.gather(loss, list(range(self.config.max_length))), tf.gather(tf.transpose(self.mask_placeholder), list(range(self.config.max_length))))
+
+        # print self.mask_placeholder.get_shape()
+
+        return loss
 
         # for time_step in range(self.config.max_length-1):
         #     # print  self.mask_placeholder[:,time_step].get_shape()
@@ -191,7 +202,7 @@ class RNN_LSTM:
         # loss = tf.boolean_mask(loss, self.mask_placeholder)
         # loss = tf.reduce_mean(loss)
         # return loss
-        return losses/self.config.batch_size
+        # return losses/self.config.batch_size
 
     def back_prop(self, loss):
 
@@ -200,18 +211,20 @@ class RNN_LSTM:
 
         return train_op
 
-    def train_on_batch(self, sess, batch):
+    def train_on_batch(self, sess, batch, b_size):
 
         batch_x = generate_padded_seq(self.config.max_length, self.config.output_size, batch)
 
         batch_y = [i[1:] for i in batch_x]
+
         seq_len = [len(i) for i in batch]
+
         masks = get_masks(batch, self.config.max_length)
 
         feed = self.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= self.config.drop_out, mask_batch=masks, seq_length = seq_len)
 
         _, loss = sess.run([self.train_op, self.loss], feed_dict=feed)
-        # loss = sess.run([self.loss], feed_dict=feed)
+        # loss = sess.run(self.loss, feed_dict=feed)
         return loss
 
     def return_label_probabilities(self):
@@ -225,9 +238,10 @@ class RNN_LSTM:
         training_size = len(data)
 
         for i, indices in enumerate(get_batch(training_size, self.config.batch_size)):
-
+            b_size = len(data[indices])
             # trainy = self.train_y[indices]
-            loss = self.train_on_batch(sess, data[indices])
+            loss = self.train_on_batch(sess, data[indices], b_size)
+
             print ("Batch " + str(i) + " Loss: " + str(loss))
 
         # if get_error == True:
@@ -284,12 +298,12 @@ def main():
     def get_indices(sent):
         return [vocabs[i] for i in sent]
 
-    sample = np.array([get_indices(j) for j in all_dat['personalfinance']][0:100])
+    sample = np.array([get_indices(j) for j in all_dat['personalfinance']][0:250])
     # subsample_y = [get_indices(j) for j[1:] in all_dat['personalfinance']][0:100]
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 10)
+    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 15)
 
     idx = np.arange(len(sample))
 
@@ -307,10 +321,12 @@ def main():
 
         for i in range(n_epochs):
             print "Epoch: " + str(i)
+
             m.run_epoch(sess, np.array(train))
 
         #evaluate training perplexity
         masks = get_masks(train, c.max_length)
+
         seq_len = [len(i) for i in train]
         batch_x = generate_padded_seq(c.max_length, c.output_size, train)
         batch_y = [i[1:] for i in batch_x]
