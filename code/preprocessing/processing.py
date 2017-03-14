@@ -43,6 +43,6 @@ if __name__ == "__main__":
     start = time.clock()
     glove_trainer.make_cooccurrence_mat()
     print_time_elapsed(start, "make_embeddings")
-    glove_trainer.train(iters = num_iters, v_dim = 25, a = 0.75, x_max = 100, save_intermediate_path=weights_output_file)
+    glove_trainer.train(iters = num_iters, v_dim = 200, a = 0.75, x_max = 100, save_intermediate_path=weights_output_file)
     print_time_elapsed(start, "Training")
     glove_trainer.save_weights(weights_output_file)
