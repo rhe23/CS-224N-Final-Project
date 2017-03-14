@@ -11,11 +11,21 @@ def tokenizer(token_list, punc = True):
 
 def tokenize(s, preserve_punc = True):
     #tokenize a string to a list of tokens
-
     if preserve_punc ==False:
-
         return re.findall(r'[a-zA-Z]+|[a-zA-Z]+[\W]*[a-zA-Z]*', s)
 
     l= filter(lambda x: x.strip(), re.findall(r"[-\w]+'[-\w]|[-\w]+|(?<=\s)*\W+(?=\s+)|\W+(?=[a-zA-Z0-9])|(?<=\w)+\W", s))
     return [x.lstrip().rstrip() for x in l ]
 
+def tokenize_2(s, preserve_punc = True):
+    if preserve_punc == False:
+        token_regex = r"[a-zA-Z]+|[a-zA-Z]+[\W]*[a-zA-Z]*"
+        tokens = re.findall(token_regex, s)
+    else:
+        token_regex = r"[-\w]+'[-\w]|[-\w]+|(?<=\s)*\W+(?=\s+)|\W+(?=[a-zA-Z0-9])|(?<=\w)+\W"
+        tokens = filter(lambda x: x.strip(), re.findall(token_regex, s))
+    tokens = [x.strip() for x in tokens]
+    # append start and end tokens 
+    tokens.append("<start>")
+    tokens.append("<end>")
+    return tokens

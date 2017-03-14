@@ -87,7 +87,7 @@ class make_embeddings:
             new_batch_inds = zip(center_inds, context_inds)
             #make cooccurences into a matrix
             J =  np.array([self.W[i].dot(self.W[j]) for i,j in new_batch_inds]) + self.b[center_inds] \
-                + self.b[context_inds] - np.log(np.array([self.coccurrence_mat[i][j] for (i, j) in new_batch_inds]))
+                + self.b[context_inds] - np.log(np.array([self.coccurrence_mat[i][j] for (i, j) in batch]))
 
             f_x_ij_vec = [self.fx[i][j] for i, j in batch]
 
