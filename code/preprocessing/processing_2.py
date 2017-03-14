@@ -25,7 +25,6 @@ if __name__ == "__main__":
     parser.add_argument('-b', '--batch_size', default=1, type=int, help="size of minibatches (-1 for entire batch)")
     parser.add_argument('-m', '--opt_method', default="adagrad", help="optimization method: either vanilla \
         gradient descent ('grad') or adagrad ('adagrad')")
-    parser.add_argument('-c', '--num_cores', default=1, type=int, help="number of cores to use")
     parser.add_argument('-a', '--alpha', default=0.75, type=float, help="alpha for weighting function")
     parser.add_argument('-x', '--x_max', default=100, type=float, help="x_max for weighting function")
     parser.add_argument('-v', '--v_dim', default=200, type=int, help="number of dimensions for embeddings")
@@ -45,7 +44,7 @@ if __name__ == "__main__":
 
     start = time.clock()
     trainer.train(iters=args.iterations, v_dim=args.v_dim, alpha=args.alpha, x_max=args.x_max, \
-        batch_size=args.batch_size, num_cores=args.num_cores, learning_rate=args.learning_rate, \
+        batch_size=args.batch_size, learning_rate=args.learning_rate, \
         save_intermediate_path=args.intermediate_path, opt_method=args.opt_method)
     print_time_elapsed(start, "Training")
 

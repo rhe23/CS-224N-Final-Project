@@ -1,17 +1,14 @@
 from tokenize_functions import tokenize_2
 import cPickle
-import random
 import numpy as np
 import time
 from sklearn.feature_extraction.text import CountVectorizer
-from collections import defaultdict
 import scipy.sparse
 import sys
 from operator import itemgetter
 import pycuda.gpuarray as gpuarray
 from pycuda.autoinit import context
 from pycuda.compiler import SourceModule
-import skcuda
 
 mod = SourceModule("""
     #include <math.h>
@@ -231,7 +228,7 @@ class GloveTrainer:
             # self.gradb[batch_i] = self.gradb_tilde[batch_j] = weighted_cost_inner
             batchCopyVector(batch_size, weighted_cost_inner, self.b, batch_i, \
                 block=(self.blockDim, 1, 1), grid=(self.numBlocks, 1))
-            batchCopyVector(batch_size weighted_cost_inner, self.b_tilde, batch_j, \
+            batchCopyVector(batch_size, weighted_cost_inner, self.b_tilde, batch_j, \
                 block=(self.blockDim, 1, 1), grid=(self.numBlocks, 1))
             context.synchronize()
 
@@ -293,7 +290,7 @@ class GloveTrainer:
         return cost
         '''
 
-    def train(self, iters, v_dim, alpha, x_max, batch_size, num_cores, learning_rate, save_intermediate_path, opt_method):
+    def train(self, iters, v_dim, alpha, x_max, batch_size, learning_rate, save_intermediate_path, opt_method):
         data_type=np.float32
         self.W = gpuarray.to_gpu(np.random.rand(self.V, v_dim))
         self.W_tilde = gpuarray.to_gpu(np.random.rand(self.V, v_dim))
