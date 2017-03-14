@@ -49,11 +49,15 @@ class GloveTrainer:
         assert self.W, "Haven't trained embeddings yet!"
         return self.W, self.W_tilde
 
-    # export weights as a concatenation of the 2 weights matrices W and W_tilde
     def export_weights(self, path):
-        concat_weights = np.vstack((self.W, self.W_tilde))
-        with open(path + '.pkl', 'wb') as file:
-            cPickle.dump(concat_weights, file, protocol=2)
+        with open(path + 'W_1.pkl', 'wb') as file:
+            np.save(file, self.W[:self.V / 2])
+        with open(path + 'W_2.pkl', 'wb') as file:
+            np.save(file, self.W[self.V / 2:])
+        with open(path + 'W_tilde_1.pkl', 'wb') as file:
+            np.save(file, self.W_tilde[:self.V / 2])
+        with open(path + 'W_tilde_2.pkl', 'wb') as file:
+            np.save(file, self.W_tilde[self.V / 2:])
 
     def weight_func(x_ij, a, x_max):
         #x_ij is the occcurencc count, alpha is the scaling param, x_max is the cutoff
@@ -93,7 +97,7 @@ class GloveTrainer:
     # opt_method can be adagrad or grad (vanilla gradient descent)
     def minimize_batch(self, batch_size, eta, opt_method):
         #using a batch_gradient descent method
-        cost = 0
+        cost = 0.0
         eps = 1e-8  # for use in adagrad
         np.random.shuffle(self.nonzeros)
         for lower_index in range(0, len(self.nonzeros), batch_size):
@@ -199,8 +203,11 @@ class GloveTrainer:
         # These values don't have to be recomputed each iteration
         self.f_x = defaultdict(lambda : dict())
         for i, j in self.nonzeros:
-            self.f_x[i][j] = (self.cooccurrence_mat[i][j] / float(x_max)) ** alpha
-
+            if self.cooccurrence_mat[i][j] < x_max:
+                self.f_x[i][j] = (self.cooccurrence_mat[i][j] / float(x_max)) ** alpha
+            else:
+                self.f_x[i][j] = 1.0
+                
         for i in range(iters):
             start = time.clock()
             if batch_size == 1:

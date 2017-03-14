@@ -22,6 +22,10 @@ import tensorflow as tf
 import functools
 import pickle
 import time
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
 
 # Code recycled from hw3
 def pad_sequences(data, max_length):
@@ -214,7 +218,7 @@ class Classification:
         return weight, bias
         
 
-def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.185, max_sentence_length=20, layers=1, train_percent = 80, dev_percent = 10):
+def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.185, max_sentence_length=20, layers=1, train_percent = 80, dev_percent = 10, plot_confusion = False):
     
     # Load embeddings
     # Data address
@@ -265,10 +269,21 @@ def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.1
                      {data:train['x'], target:train['y'], dropout:1} )
         print('Epoch:{:2d}, Training Error {:3.1f}%, Test Error:{:3.1f}%'.format( (epoch + 1), (100*error_train), (100*error_test)))
         #print('Epoch:{:2d}, Training Error {:3.1f}%'.format( (epoch + 1), (100*error_train)))
+    
+    if plot_confusion == True:
+        # Plot confusion matrix
+        predictions = sess.run(model.prediction,
+	   	        {data:test['x'], target:test['y'], dropout:1} )
+        conf = confusion_matrix(np.argmax(test['y'], axis = 1), np.argmax(predictions, axis = 1))
+	np.save(address + 'confusion_mat.npy', conf)
+	print(conf)
+
     return(error_train, error_test)
 
                   
 # Run main() if current namespace is main
 if __name__ == '__main__':
-    error_train, error_test = run_classifier(r'/Users/tylerchase/Documents/Stanford_Classes/CS224n_Natural_Language_Processing_with_Deep_Learning/final project/CS-224N-Final-Project/data//')
-
+    address = r'/home/cs224n/CS-224N-Final-Project/data//'
+    error_train, error_test = run_classifier(address, epoch_size = 10, minibatch_size = 100, 
+					     train_percent = 80, dev_percent = 10, plot_confusion = True)
+    
