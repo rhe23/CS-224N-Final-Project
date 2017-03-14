@@ -178,7 +178,7 @@ class GloveTrainer:
             cost += weighted_cost_inner * cost_inner
         return cost
 
-    def train(self, iters, v_dim, alpha, x_max, batch_size, num_cores, learning_rate, save_intermediate_path, opt_method):
+    def train(self, iters, v_dim, alpha, x_max, batch_size, learning_rate, save_intermediate_path, opt_method):
         data_type=np.float64
         self.W = np.random.rand(self.V, v_dim)
         self.W_tilde = np.random.rand(self.V, v_dim)

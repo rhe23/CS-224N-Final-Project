@@ -1,6 +1,6 @@
 #main processing file for vocab/word embeddings
 import sys
-from embeddings_train_2 import GloveTrainer
+from embeddings_train_gpu import GloveTrainer
 import time
 import argparse
 
