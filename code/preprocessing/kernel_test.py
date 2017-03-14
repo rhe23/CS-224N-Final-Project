@@ -32,7 +32,6 @@ mod = SourceModule("""
       if (batch_index >= p) return;
 
       int ind = batch[batch_index];
-
       atomicAdd(&a[ind], -lr * b[ind]);
     }
 
@@ -100,8 +99,8 @@ def testBatchCopyVectorKernel():
   batch_gpu = gpuarray.to_gpu(batch)
 
   func = mod.get_function("BatchCopyVectorKernel")
-  func(np.int32(batch_size), a_gpu, b_gpu, batch_gpu, block=(num_threads_x, num_threads_y, 1), \
-    grid=(num_blocks_x, num_blocks_y))
+  func(np.int32(batch_size), a_gpu, b_gpu, batch_gpu, block=(num_threads_x * num_threads_y, 1, 1), \
+    grid=(num_blocks_x * num_blocks_y, 1))
 
   context.synchronize()
 
@@ -137,15 +136,14 @@ def testBatchMatSubtractInplaceKernel():
   actual_result = a_cpu
   assertResultsClose(gpu_result, actual_result)
 
-def testBatchVecSubtractInplace():
+def testBatchVecSubtractInplaceKernel():
   batch_size = 128
-  num_rows = 1000  
-  num_cols = 200
+  num_elems = 1000
   c = 0.05
-
-  a_cpu = np.random.rand(num_rows).astype('f')
-  b_cpu = np.random.rand(num_rows).astype('f')
-  batch = np.random.choice(np.arange(num_rows, dtype=np.int32), size=batch_size, replace=False)
+  
+  a_cpu = np.random.rand(num_elems).astype('f')
+  b_cpu = np.random.rand(num_elems).astype('f')
+  batch = np.random.choice(np.arange(num_elems, dtype=np.int32), size=batch_size, replace=False)
 
   a_gpu = gpuarray.to_gpu(a_cpu)
   b_gpu = gpuarray.to_gpu(b_cpu)
@@ -153,7 +151,7 @@ def testBatchVecSubtractInplace():
 
   func = mod.get_function("BatchVecSubtractInplaceKernel")
   func(np.int32(batch_size), np.float32(c), a_gpu, b_gpu, batch_gpu, \
-    block=(num_threads_x, num_threads_y, 1), grid=(num_blocks_x, num_blocks_y))
+    block=(num_threads_x, 1, 1), grid=(num_blocks_x, 1))
 
   context.synchronize()
 
@@ -169,7 +167,7 @@ def testBatchMatVecRowMultKernel():
   num_cols = 200
 
   a_cpu = np.random.rand(num_rows, num_cols).astype('f')
-  b_cpu = np.random.rand(num_rows).astype('f')
+  b_cpu = np.random.rand(batch_size).astype('f')
   c_cpu = np.random.rand(num_rows, num_cols).astype('f')
   batch_i = np.random.choice(np.arange(num_rows, dtype=np.int32), size=batch_size, replace=False)
   batch_j = np.random.choice(np.arange(num_rows, dtype=np.int32), size=batch_size, replace=False)
@@ -211,7 +209,7 @@ def testBatchMatColDotKernel():
   result = gpuarray.zeros(batch_size, dtype=np.float32)
 
   func = mod.get_function("BatchMatColDotKernel")
-  func(np.int32(batch_size), np.int32(num_cols), a_gpu, b_gpu, batch_i_gpu, batch_j_gpu, result \
+  func(np.int32(batch_size), np.int32(num_cols), a_gpu, b_gpu, batch_i_gpu, batch_j_gpu, result, \
     block=(num_threads_x, num_threads_y, 1), grid=(num_blocks_x, num_blocks_y))
 
   context.synchronize()
@@ -228,3 +226,4 @@ if __name__ == "__main__":
   testBatchVecSubtractInplaceKernel()
   testBatchMatColDotKernel()
   # composite tests
+  print "All tests passed!"
