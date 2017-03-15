@@ -303,7 +303,7 @@ def main():
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 120)
+    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 64)
 
     idx = np.arange(len(sample))
 
