@@ -360,7 +360,9 @@ def main():
             #evaluate training perplexity
             test_size = len(test)
             total_perplexity = 0
+            total_batches = 0
             for k, indices in enumerate(get_batch(test_size, 100)):
+                total_batches += k
                 test_batch = test[indices]
                 masks = get_masks(test_batch, c.max_length)
 
@@ -375,9 +377,9 @@ def main():
                 # print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
                 print "Epoch: " + str(j) + " average test perplexity for batch " + str(k) +  ':' + str(perplexities)
 
-            if total_perplexity/test_size < best_perplexity:
-                best_perplexity = total_perplexity/test_size
-                print "New Best Perplexity: " + str(best_perplexity )
+            if total_perplexity/total_batches < best_perplexity:
+                best_perplexity = total_perplexity/total_batches
+                print "New Best Perplexity: " + str(best_perplexity)
                 saver.save(sess, "code/trainer/" + r + "_epoch_" + str(j) + ".ckpt")
 
 if __name__ == '__main__':
