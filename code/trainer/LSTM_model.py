@@ -280,7 +280,7 @@ class RNN_LSTM:
         return loss
 
 def main():
-    n_epochs = 20
+    n_epochs = 100
     embeddings = get_embeddings()
     embeddings = np.vstack([embeddings, np.zeros(embeddings.shape[1])])
     all_dat = collections.defaultdict(list)
@@ -298,12 +298,12 @@ def main():
     def get_indices(sent):
         return [vocabs[i] for i in sent]
 
-    sample = np.array([get_indices(j) for j in all_dat['personalfinance']])[0:100]
+    sample = np.array([get_indices(j) for j in all_dat['personalfinance']])[0:10]
     # subsample_y = [get_indices(j) for j[1:] in all_dat['personalfinance']][0:100]
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 10)
+    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 1)
 
     idx = np.arange(len(sample))
 
