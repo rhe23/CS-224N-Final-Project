@@ -8,7 +8,7 @@ from scipy.sparse import identity
 
 
 os.chdir("../..")
-def get_embeddings(embed_path = './data/large_weights.pkl_iter100'):
+def get_embeddings(embed_path = './data/new_embeddings.pkl'):
 
     with open(embed_path, 'rb') as f:
         embeddings = cPickle.load(f)
@@ -290,7 +290,7 @@ def main():
 
     vocabs = collections.defaultdict(str)
 
-    with open('./data/large_vocab.csv') as csvfile:
+    with open('./data/large_vocab_new.csv') as csvfile:
         vocab = csv.reader(csvfile)
         for v in  vocab:
             vocabs[v[1]] = v[0]
@@ -303,7 +303,7 @@ def main():
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 50)
+    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36)
 
     idx = np.arange(len(sample))
 
