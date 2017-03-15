@@ -321,7 +321,13 @@ class GloveTrainer:
         self.setOptimalBlockAndGridDims(batch_size)
 
         # These values don't have to be recomputed each iteration
-        self.f_x = [(self.cooccurrence_mat[k] / float(x_max)) ** alpha for k in range(len(self.nonzeros))]
+        self.f_x = []
+        for k in range(len(self.nonzeros)):
+            if self.cooccurrence_mat[k] < x_max:
+                weight = (self.cooccurrence_mat[k] / float(x_max)) ** alpha
+            else:
+                weight = 1
+            self.f_x.append(weight)
         self.f_x = gpuarray.to_gpu(np.array(self.f_x))
 
         for i in range(iters):

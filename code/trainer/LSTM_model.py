@@ -8,7 +8,7 @@ from scipy.sparse import identity
 
 
 os.chdir("../..")
-def get_embeddings(embed_path = './data/large_weights.pkl_iter100'):
+def get_embeddings(embed_path = './data/new_embeddings.pkl'):
 
     with open(embed_path, 'rb') as f:
         embeddings = cPickle.load(f)
@@ -48,7 +48,7 @@ def get_dev_test_sets(dev_size, test_size, training_indices):
     #returns a list of indices for both training and dev sets
 
     total_sizes = dev_size+test_size
-    temp_inds = np.random.choice(training_indices, math.floor(total_sizes*len(training_indices)), replace = False)
+    temp_inds = np.random.choice(training_indices, int(math.floor(total_sizes*len(training_indices))), replace = False)
     training_inds = [i for i in training_indices if i not in temp_inds]
     dev_inds = temp_inds[:len(temp_inds)/2]
     test_inds = temp_inds[len(temp_inds)/2:]
@@ -133,7 +133,7 @@ class RNN_LSTM:
     def add_embeddings(self):
         #use this function to convert inputs to a tensor of shape (none, sentence length (self.config.max_length), number of features * embedding size
         # (self.config.n_features * self.config.embed_size)
-        embeddings = tf.Variable(self.pretrain_embeddings, dtype = tf.float32)
+        embeddings = tf.Variable(self.pretrain_embeddings, dtype = tf.float32, trainable=False)
         embeddings = tf.nn.embedding_lookup(embeddings, ids = self.input_placeholder)
         embeddings = tf.reshape(embeddings, [-1, self.config.max_length, self.config.n_features * self.config.embed_size])
         self.x = embeddings
@@ -176,8 +176,19 @@ class RNN_LSTM:
         # loss = 0
         pred = preds[1] #get the raw predicted not in probability form
 
-        loss =tf.nn.sparse_softmax_cross_entropy_with_logits(labels = self.labels_placeholder, logits = pred)
-        losses =(tf.reduce_sum(tf.boolean_mask(loss, self.mask_placeholder)))
+        losses =tf.reshape(tf.nn.sparse_softmax_cross_entropy_with_logits(labels = self.labels_placeholder, logits = pred), [-1])
+        mask = tf.reshape(self.mask_placeholder[:, 0:self.mask_placeholder.get_shape()[1]-1], [-1])
+        loss = tf.reduce_sum(tf.boolean_mask(losses, mask))
+        # mask = tf.reshape(self.mask_placeholder, [-1])
+        # loss = tf.boolean_mask()
+        # for sample in range(self.config.batch_size):
+
+        #     # losses +=  tf.reduce_sum(tf.boolean_mask(loss[sample, :], self.mask_placeholder[sample,:]))
+        # losses = tf.boolean_mask(tf.gather(loss, list(range(self.config.max_length))), tf.gather(tf.transpose(self.mask_placeholder), list(range(self.config.max_length))))
+
+        # print self.mask_placeholder.get_shape()
+
+        return loss
 
         # for time_step in range(self.config.max_length-1):
         #     # print  self.mask_placeholder[:,time_step].get_shape()
@@ -191,7 +202,7 @@ class RNN_LSTM:
         # loss = tf.boolean_mask(loss, self.mask_placeholder)
         # loss = tf.reduce_mean(loss)
         # return loss
-        return losses/self.config.batch_size
+        # return losses/self.config.batch_size
 
     def back_prop(self, loss):
 
@@ -205,13 +216,15 @@ class RNN_LSTM:
         batch_x = generate_padded_seq(self.config.max_length, self.config.output_size, batch)
 
         batch_y = [i[1:] for i in batch_x]
+
         seq_len = [len(i) for i in batch]
+
         masks = get_masks(batch, self.config.max_length)
 
         feed = self.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= self.config.drop_out, mask_batch=masks, seq_length = seq_len)
 
         _, loss = sess.run([self.train_op, self.loss], feed_dict=feed)
-        # loss = sess.run([self.loss], feed_dict=feed)
+        # loss = sess.run(self.loss, feed_dict=feed)
         return loss
 
     def return_label_probabilities(self):
@@ -228,6 +241,7 @@ class RNN_LSTM:
 
             # trainy = self.train_y[indices]
             loss = self.train_on_batch(sess, data[indices])
+
             print ("Batch " + str(i) + " Loss: " + str(loss))
 
         # if get_error == True:
@@ -266,7 +280,7 @@ class RNN_LSTM:
         return loss
 
 def main():
-    n_epochs = 20
+    n_epochs = 100
     embeddings = get_embeddings()
     embeddings = np.vstack([embeddings, np.zeros(embeddings.shape[1])])
     all_dat = collections.defaultdict(list)
@@ -276,20 +290,20 @@ def main():
 
     vocabs = collections.defaultdict(str)
 
-    with open('./data/large_vocab.csv') as csvfile:
+    with open('./data/large_vocab_new.csv') as csvfile:
         vocab = csv.reader(csvfile)
-        for v in  vocab:
+        for v in vocab:
             vocabs[v[1]] = v[0]
 
     def get_indices(sent):
         return [vocabs[i] for i in sent]
 
-    sample = np.array([get_indices(j) for j in all_dat['personalfinance']][0:100])
+    sample = np.array([get_indices(j) for j in all_dat['personalfinance']])[0:10]
     # subsample_y = [get_indices(j) for j[1:] in all_dat['personalfinance']][0:100]
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 10)
+    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 1)
 
     idx = np.arange(len(sample))
 
@@ -307,16 +321,19 @@ def main():
 
         for i in range(n_epochs):
             print "Epoch: " + str(i)
+
             m.run_epoch(sess, np.array(train))
 
+            saver.save(sess, "code/trainer/epoch_" + str(i) + ".ckpt")
         #evaluate training perplexity
         masks = get_masks(train, c.max_length)
+
         seq_len = [len(i) for i in train]
         batch_x = generate_padded_seq(c.max_length, c.output_size, train)
         batch_y = [i[1:] for i in batch_x]
         feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
 
-        perplexities = sess.run(m.error, feed_dict=feed )
+        perplexities = sess.run(m.error, feed_dict=feed)
 
         seq_inds = np.arange(len(seq_len))
         print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
