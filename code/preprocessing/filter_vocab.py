@@ -56,7 +56,7 @@ for pair in word_inds:
 with open('./data/large_vocab_new.csv', 'wb') as csvfile:
     vocabwriter = csv.writer(csvfile)
     for word, index in new_vocab.iteritems():
-        vocabwriter.writerow([word, index])
+        vocabwriter.writerow([index, word])
 
 
 with open('./data/new_embeddings.pkl', 'wb') as f:
