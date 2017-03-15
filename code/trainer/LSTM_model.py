@@ -141,7 +141,7 @@ class RNN_LSTM:
         self.cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.hidden_unit_size,
                                                 initializer=tf.contrib.layers.xavier_initializer(), activation=tf.sigmoid)
         self.cell = tf.nn.rnn_cell.DropoutWrapper(cell = self.cell, output_keep_prob=self.dropout_placeholder)
-        # self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
+        self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
 
     def prediction(self): #main training function for the model
         #sets up the construction of the graphs such that when session is called these operations will run
@@ -150,24 +150,24 @@ class RNN_LSTM:
         # state = tf.Variable(self.cell.zero_state(self.config.batch_size, dtype = tf.float32), trainable=False) #initial state
 
         outputs, states = tf.nn.dynamic_rnn(self.cell, inputs = self.x, dtype = tf.float32, sequence_length=self.sequence_placeholder)
-        outputs = tf.transpose(outputs, [1,0,2])
-        # # # Gather last output slice
+        # outputs = tf.transpose(outputs, [1,0,2])
+        # # # # Gather last output slice
+        #
+        # preds = []
+        # W = tf.get_variable("W2", shape = [self.config.hidden_unit_size, self.config.output_size], initializer=tf.contrib.layers.xavier_initializer() )
+        # b = tf.get_variable("b2", shape = [self.config.output_size], initializer=tf.constant_initializer(0) )
+        # # #
+        # for time_step in range(self.config.max_length):
+        #     out = tf.gather(outputs, ( time_step ) )
+        #     y_t = tf.matmul(out, W) + b
+        #     preds.append(y_t)
+        # # return (tf.reduce_sum(tf.pack(preds, axis=1)))
+        # probs = tf.nn.softmax(tf.pack(preds, axis=1))
+        # preds = tf.pack(preds, axis=1)
 
-        preds = []
-        W = tf.get_variable("W2", shape = [self.config.hidden_unit_size, self.config.output_size], initializer=tf.contrib.layers.xavier_initializer() )
-        b = tf.get_variable("b2", shape = [self.config.output_size], initializer=tf.constant_initializer(0) )
-        # #
-        for time_step in range(self.config.max_length):
-            out = tf.gather(outputs, ( time_step ) )
-            y_t = tf.matmul(out, W) + b
-            preds.append(y_t)
-        # return (tf.reduce_sum(tf.pack(preds, axis=1)))
-        probs = tf.nn.softmax(tf.pack(preds, axis=1))
-        preds = tf.pack(preds, axis=1)
+        probs = tf.nn.softmax(outputs)
 
-        # probs = tf.nn.softmax(outputs)
-
-        return (probs,preds[:, 0:preds.get_shape()[1]-1,:])
+        return (probs,outputs[:, 0:outputs.get_shape()[1]-1,:])
 
     def calc_loss(self, preds):
         #preds is of the form: (batch_size, max_length, output_size)
@@ -322,12 +322,12 @@ def main():
         sess.run(init)
         # loss = m.test_session(sess, train)
 
-        for i in range(n_epochs):
-            print "Epoch: " + str(i)
+        for j in range(n_epochs):
+            print "Epoch: " + str(j)
 
             m.run_epoch(sess, np.array(train))
 
-            saver.save(sess, "code/trainer/epoch_" + str(i) + ".ckpt")
+            saver.save(sess, "code/trainer/epoch_" + str(j) + ".ckpt")
 
             #evaluate training perplexity
             masks = get_masks(train, c.max_length)
@@ -341,7 +341,7 @@ def main():
 
             # seq_inds = np.arange(len(seq_len))
             # print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
-            print "Epoch: " + str(i) + " average training perplexity: " + str(perplexities)
+            print "Epoch: " + str(j) + " average training perplexity: " + str(perplexities)
 
 
             #evaluate training perplexity
@@ -356,7 +356,7 @@ def main():
 
             # seq_inds = np.arange(len(seq_len))
             # print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
-            print "Epoch: " + str(i) + " average test perplexity: " + str(perplexities)
+            print "Epoch: " + str(j) + " average test perplexity: " + str(perplexities)
 
 
 if __name__ == '__main__':
