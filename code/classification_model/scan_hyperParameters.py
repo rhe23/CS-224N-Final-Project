@@ -15,7 +15,7 @@ import tensorflow as tf
 import LSTM_classifier
 
 # Is the data already saved? and where is it saved?
-saved = 1
+saved = 0
 address = r'/home/cs224n/CS-224N-Final-Project/data//'
 
 # Inputs for dropout constants of interest
@@ -32,19 +32,19 @@ if not saved:
     test_error = []
     for dropout_const in value_list:
         temp_1, temp_2 = LSTM_classifier.run_classifier(address, epoch_size = 10, \
-            dropout_const = dropout_const, train_percent = 80, dev_percent = 10)
+            dropout_const = dropout_const, train_percent = 80, dev_percent = 10, layers = 2)
         train_error.append(temp_1)
         test_error.append(temp_2)
         tf.reset_default_graph()
     error['train'] = train_error
     error['test'] = test_error    
-    file = open(address + 'errors', 'wb')
+    file = open(address + 'errors_2layers', 'wb')
     pickle.dump(error, file
 )
     file.close()
     
 else:
-    file = open(address + 'errors','r')
+    file = open(address + 'errors_2layers','r')
     error = pickle.load(file)
     file.close()
     
@@ -56,7 +56,7 @@ ax1.set_xlabel("dropout constant")
 ax1.set_ylabel("Error")
 ax1.set_title("Regularization Parameter Scan \n Dropout Rate") 
 plt.legend(loc='upper right')
-plt.savefig(address + 'errors.png', bbox_inches='tight')
+plt.savefig(address + 'errors_2layers.png', bbox_inches='tight')
     
 
     
