@@ -73,7 +73,7 @@ class Config:
         self.n_epoches = n_epochs
         self.embed_size =embed_size
         self.output_size = output_size #the size of the vocab
-        self.learning_rate = 0.05
+        self.learning_rate = 0.1
 
 def generate_padded_seq(max_length, vocab_length, sentences):
     return np.array([sentence + [vocab_length-1]*(max_length-len(sentence)) for sentence in sentences], dtype=np.int32)
@@ -99,8 +99,7 @@ class RNN_LSTM:
         self.pred = self.prediction() #forward prop
         self.loss = self.calc_loss(self.pred) #calculate loss
         self.train_op = self.back_prop(self.loss) #optimization step
-        self.error = self.return_label_probabilities()
-
+        self.error = self.return_label_probabilities(self.loss)
 
     def add_placeholders(self):
 
@@ -140,9 +139,9 @@ class RNN_LSTM:
 
     def set_cell(self):
         self.cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.hidden_unit_size,
-                                                initializer=tf.contrib.layers.xavier_initializer())
+                                                initializer=tf.contrib.layers.xavier_initializer(), activation=tf.sigmoid)
         self.cell = tf.nn.rnn_cell.DropoutWrapper(cell = self.cell, output_keep_prob=self.dropout_placeholder)
-        self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
+        # self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
 
     def prediction(self): #main training function for the model
         #sets up the construction of the graphs such that when session is called these operations will run
@@ -151,22 +150,24 @@ class RNN_LSTM:
         # state = tf.Variable(self.cell.zero_state(self.config.batch_size, dtype = tf.float32), trainable=False) #initial state
 
         outputs, states = tf.nn.dynamic_rnn(self.cell, inputs = self.x, dtype = tf.float32, sequence_length=self.sequence_placeholder)
-        # outputs = tf.transpose(outputs, [1,0,2])
+        outputs = tf.transpose(outputs, [1,0,2])
         # # # Gather last output slice
-        # preds = []
-        # W = tf.get_variable("W2", shape = [self.config.hidden_unit_size, self.config.output_size], initializer=tf.contrib.layers.xavier_initializer() )
-        # b = tf.get_variable("b2", shape = [self.config.output_size], initializer=tf.constant_initializer(0) )
+
+        preds = []
+        W = tf.get_variable("W2", shape = [self.config.hidden_unit_size, self.config.output_size], initializer=tf.contrib.layers.xavier_initializer() )
+        b = tf.get_variable("b2", shape = [self.config.output_size], initializer=tf.constant_initializer(0) )
         # #
-        # for time_step in range(self.config.max_length):
-        #     out = tf.gather(outputs, ( time_step ) )
-        #     y_t = tf.matmul(out, W) + b
-        #     preds.append(y_t)
-        #
-        # preds = tf.pack(preds, axis=1)
+        for time_step in range(self.config.max_length):
+            out = tf.gather(outputs, ( time_step ) )
+            y_t = tf.matmul(out, W) + b
+            preds.append(y_t)
+        # return (tf.reduce_sum(tf.pack(preds, axis=1)))
+        probs = tf.nn.softmax(tf.pack(preds, axis=1))
+        preds = tf.pack(preds, axis=1)
 
-        probs = tf.nn.softmax(outputs)
+        # probs = tf.nn.softmax(outputs)
 
-        return (probs, outputs[:, 0:outputs.get_shape()[1]-1,:])
+        return (probs,preds[:, 0:preds.get_shape()[1]-1,:])
 
     def calc_loss(self, preds):
         #preds is of the form: (batch_size, max_length, output_size)
@@ -178,7 +179,7 @@ class RNN_LSTM:
 
         losses =tf.reshape(tf.nn.sparse_softmax_cross_entropy_with_logits(labels = self.labels_placeholder, logits = pred), [-1])
         mask = tf.reshape(self.mask_placeholder[:, 0:self.mask_placeholder.get_shape()[1]-1], [-1])
-        loss = tf.reduce_sum(tf.boolean_mask(losses, mask))
+        loss = tf.reduce_mean(tf.boolean_mask(losses, mask))
         # mask = tf.reshape(self.mask_placeholder, [-1])
         # loss = tf.boolean_mask()
         # for sample in range(self.config.batch_size):
@@ -206,7 +207,7 @@ class RNN_LSTM:
 
     def back_prop(self, loss):
 
-        optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.config.learning_rate)
+        optimizer = tf.train.AdamOptimizer(learning_rate=self.config.learning_rate)
         train_op = optimizer.minimize(loss)
 
         return train_op
@@ -224,14 +225,16 @@ class RNN_LSTM:
         feed = self.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= self.config.drop_out, mask_batch=masks, seq_length = seq_len)
 
         _, loss = sess.run([self.train_op, self.loss], feed_dict=feed)
-        # loss = sess.run(self.loss, feed_dict=feed)
-        return loss
+        # loss = sess.run(self.error, feed_dict=feed)
+        # pred = sess.run(self.pred, feed_dict=feed)
+        # return loss
+        return _, loss
 
-    def return_label_probabilities(self):
+    def return_label_probabilities(self, loss):
         #returns the list of probabilities of the actual word labels for all cases in a given batch
-        t = tf.gather_nd(self.pred[0], tf.stack([tf.tile(tf.expand_dims(tf.range(tf.shape(self.labels_placeholder)[0]), 1), [1, tf.shape(self.labels_placeholder)[1]]), tf.transpose(tf.tile(tf.expand_dims(tf.range(tf.shape(self.labels_placeholder)[1]), 1), [1, tf.shape(self.labels_placeholder)[0]])), self.labels_placeholder], 2))
+        # t = tf.gather_nd(self.pred[0], tf.stack([tf.tile(tf.expand_dims(tf.range(tf.shape(self.labels_placeholder)[0]), 1), [1, tf.shape(self.labels_placeholder)[1]]), tf.transpose(tf.tile(tf.expand_dims(tf.range(tf.shape(self.labels_placeholder)[1]), 1), [1, tf.shape(self.labels_placeholder)[0]])), self.labels_placeholder], 2))
 
-        return t
+        return 2**loss
 
     def run_epoch(self, sess, data):
 
@@ -240,9 +243,9 @@ class RNN_LSTM:
         for i, indices in enumerate(get_batch(training_size, self.config.batch_size)):
 
             # trainy = self.train_y[indices]
-            loss = self.train_on_batch(sess, data[indices])
+            t = self.train_on_batch(sess, data[indices])
 
-            print ("Batch " + str(i) + " Loss: " + str(loss))
+            print ("Batch " + str(i) + " Loss: " + str(t[1]))
 
         # if get_error == True:
         #     trainx = generate_padded_seq(self.config.max_length, self.config.output_size, self.train)
@@ -298,12 +301,12 @@ def main():
     def get_indices(sent):
         return [vocabs[i] for i in sent]
 
-    sample = np.array([get_indices(j) for j in all_dat['personalfinance']])[0:10]
+    sample = np.array([get_indices(j) for j in all_dat['personalfinance']])
     # subsample_y = [get_indices(j) for j[1:] in all_dat['personalfinance']][0:100]
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 1)
+    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 64)
 
     idx = np.arange(len(sample))
 
@@ -325,23 +328,36 @@ def main():
             m.run_epoch(sess, np.array(train))
 
             saver.save(sess, "code/trainer/epoch_" + str(i) + ".ckpt")
-        #evaluate training perplexity
-        masks = get_masks(train, c.max_length)
 
-        seq_len = [len(i) for i in train]
-        batch_x = generate_padded_seq(c.max_length, c.output_size, train)
-        batch_y = [i[1:] for i in batch_x]
-        feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
+            #evaluate training perplexity
+            masks = get_masks(train, c.max_length)
 
-        perplexities = sess.run(m.error, feed_dict=feed)
+            seq_len = [len(i) for i in train]
+            batch_x = generate_padded_seq(c.max_length, c.output_size, train)
+            batch_y = [i[1:] for i in batch_x]
+            feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
 
-        seq_inds = np.arange(len(seq_len))
-        print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
-        # perplexity = [perplexities[0:seq_len[i]] for i in seq_inds]
-        # print perplexity
-        # print perplexity/seq_len
-        # for time_step in error:
-        #     print time_step
+            perplexities = sess.run(m.error, feed_dict=feed)
+
+            # seq_inds = np.arange(len(seq_len))
+            # print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
+            print "Epoch: " + str(i) + " average training perplexity: " + str(perplexities)
+
+
+            #evaluate training perplexity
+            masks = get_masks(test, c.max_length)
+
+            seq_len = [len(i) for i in test]
+            batch_x = generate_padded_seq(c.max_length, c.output_size, test)
+            batch_y = [i[1:] for i in batch_x]
+            feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
+
+            perplexities = sess.run(m.error, feed_dict=feed)
+
+            # seq_inds = np.arange(len(seq_len))
+            # print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
+            print "Epoch: " + str(i) + " average test perplexity: " + str(perplexities)
+
 
 if __name__ == '__main__':
     main()
