@@ -132,7 +132,7 @@ class RNN_LSTM:
     def add_embeddings(self):
         #use this function to convert inputs to a tensor of shape (none, sentence length (self.config.max_length), number of features * embedding size
         # (self.config.n_features * self.config.embed_size)
-        embeddings = tf.Variable(self.pretrain_embeddings, dtype = tf.float32, trainable=False)
+        embeddings = tf.Variable(self.pretrain_embeddings, dtype = tf.float32, trainable=True)
         embeddings = tf.nn.embedding_lookup(embeddings, ids = self.input_placeholder)
         embeddings = tf.reshape(embeddings, [-1, self.config.max_length, self.config.n_features * self.config.embed_size])
         self.x = embeddings
@@ -334,13 +334,12 @@ def main():
     with tf.Session() as sess:
         sess.run(init)
         # loss = m.test_session(sess, train)
-
+        best_perplexity = np.inf
         for j in range(n_epochs):
             print "Epoch: " + str(j)
 
             m.run_epoch(sess, np.array(train))
 
-            saver.save(sess, "code/trainer/epoch_" + str(j) + ".ckpt")
 
             # #evaluate training perplexity
             # masks = get_masks(train, c.max_length)
@@ -359,6 +358,7 @@ def main():
 
             #evaluate training perplexity
             test_size = len(test)
+            total_perplexity = 0
             for k, indices in enumerate(get_batch(test_size, 100)):
                 test_batch = test[indices]
                 masks = get_masks(test_batch, c.max_length)
@@ -369,11 +369,15 @@ def main():
                 feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
 
                 perplexities = sess.run(m.error, feed_dict=feed)
-
+                total_perplexity += perplexities
                 # seq_inds = np.arange(len(seq_len))
                 # print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
                 print "Epoch: " + str(j) + " average test perplexity for batch " + str(k) +  ':' + str(perplexities)
 
+            if total_perplexity/test_size < best_perplexity:
+                best_perplexity = total_perplexity/test_size
+                print "New Best Perplexity: " + str(best_perplexity )
+                saver.save(sess, "code/trainer/epoch_" + str(j) + ".ckpt")
 
 if __name__ == '__main__':
     main()
