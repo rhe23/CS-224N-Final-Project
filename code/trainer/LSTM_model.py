@@ -296,7 +296,7 @@ class RNN_LSTM:
         return loss
 
 def main():
-    n_epochs = 100
+    n_epochs = 20
     embeddings = get_embeddings()
     embeddings = np.vstack([embeddings, np.zeros(embeddings.shape[1])])
     all_dat = collections.defaultdict(list)
