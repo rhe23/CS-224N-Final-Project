@@ -314,7 +314,8 @@ def main():
     def get_indices(sent):
         return [vocabs[i] for i in sent]
 
-    sample = np.array([get_indices(j) for j in all_dat['personalfinance']])
+    r = 'personalfinance'
+    sample = np.array([get_indices(j) for j in all_dat[r]])
     # subsample_y = [get_indices(j) for j[1:] in all_dat['personalfinance']][0:100]
     max_length = max(len(i) for i in sample)
 
@@ -377,7 +378,7 @@ def main():
             if total_perplexity/test_size < best_perplexity:
                 best_perplexity = total_perplexity/test_size
                 print "New Best Perplexity: " + str(best_perplexity )
-                saver.save(sess, "code/trainer/epoch_" + str(j) + ".ckpt")
+                saver.save(sess, "code/trainer/" + r + "_epoch_" + str(j) + ".ckpt")
 
 if __name__ == '__main__':
     main()
