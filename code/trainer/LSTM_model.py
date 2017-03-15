@@ -65,7 +65,7 @@ class Config:
         self.test_set_size = 0.1
         self.classify= False #determines if we're running a classification
         self.n_features = n_features #number of features for each word in the data
-        self.drop_out = 0.5
+        self.drop_out = 1
         self.n_classes = n_classes
         self.max_length = max_length #longest length of all our sentences
         self.hidden_unit_size = hidden_unit_size
@@ -298,12 +298,12 @@ def main():
     def get_indices(sent):
         return [vocabs[i] for i in sent]
 
-    sample = np.array([get_indices(j) for j in all_dat['personalfinance']])
+    sample = np.array([get_indices(j) for j in all_dat['personalfinance']])[0:100]
     # subsample_y = [get_indices(j) for j[1:] in all_dat['personalfinance']][0:100]
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 64)
+    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 10)
 
     idx = np.arange(len(sample))
 
