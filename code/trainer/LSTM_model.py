@@ -133,7 +133,7 @@ class RNN_LSTM:
     def add_embeddings(self):
         #use this function to convert inputs to a tensor of shape (none, sentence length (self.config.max_length), number of features * embedding size
         # (self.config.n_features * self.config.embed_size)
-        embeddings = tf.Variable(self.pretrain_embeddings, dtype = tf.float32)
+        embeddings = tf.Variable(self.pretrain_embeddings, dtype = tf.float32, trainable=False)
         embeddings = tf.nn.embedding_lookup(embeddings, ids = self.input_placeholder)
         embeddings = tf.reshape(embeddings, [-1, self.config.max_length, self.config.n_features * self.config.embed_size])
         self.x = embeddings
