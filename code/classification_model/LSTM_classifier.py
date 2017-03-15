@@ -218,7 +218,7 @@ class Classification:
         return weight, bias
         
 
-def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.185, max_sentence_length=20, layers=1, train_percent = 80, dev_percent = 10, plot_confusion = False):
+def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.185, max_sentence_length=20, layers=1, train_percent = 80, dev_percent = 10, plot_confusion = False, save_flag = False):
     
     # Load embeddings
     # Data address
