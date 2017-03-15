@@ -65,7 +65,7 @@ class Config:
         self.test_set_size = 0.1
         self.classify= False #determines if we're running a classification
         self.n_features = n_features #number of features for each word in the data
-        self.drop_out = 1
+        self.drop_out = 0.5
         self.n_classes = n_classes
         self.max_length = max_length #longest length of all our sentences
         self.hidden_unit_size = hidden_unit_size
@@ -211,7 +211,7 @@ class RNN_LSTM:
 
         return train_op
 
-    def train_on_batch(self, sess, batch, b_size):
+    def train_on_batch(self, sess, batch):
 
         batch_x = generate_padded_seq(self.config.max_length, self.config.output_size, batch)
 
@@ -238,9 +238,9 @@ class RNN_LSTM:
         training_size = len(data)
 
         for i, indices in enumerate(get_batch(training_size, self.config.batch_size)):
-            b_size = len(data[indices])
+
             # trainy = self.train_y[indices]
-            loss = self.train_on_batch(sess, data[indices], b_size)
+            loss = self.train_on_batch(sess, data[indices])
 
             print ("Batch " + str(i) + " Loss: " + str(loss))
 
@@ -292,7 +292,7 @@ def main():
 
     with open('./data/large_vocab_new.csv') as csvfile:
         vocab = csv.reader(csvfile)
-        for v in  vocab:
+        for v in vocab:
             vocabs[v[1]] = v[0]
 
     def get_indices(sent):
@@ -303,7 +303,7 @@ def main():
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36)
+    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 128)
 
     idx = np.arange(len(sample))
 
