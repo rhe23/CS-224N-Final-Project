@@ -165,9 +165,36 @@ class RNN_LSTM:
         # probs = tf.nn.softmax(tf.pack(preds, axis=1))
         # preds = tf.pack(preds, axis=1)
 
+        # probs = tf.nn.softmax(outputs)
+
+        return outputs[:, 0:outputs.get_shape()[1]-1,:]
+
+    def get_predictions(self):
+
+        self.add_embeddings()
+        self.set_cell()
+        # state = tf.Variable(self.cell.zero_state(self.config.batch_size, dtype = tf.float32), trainable=False) #initial state
+
+        outputs, states = tf.nn.dynamic_rnn(self.cell, inputs = self.x, dtype = tf.float32, sequence_length=self.sequence_placeholder)
+        # outputs = tf.transpose(outputs, [1,0,2])
+        # # # # Gather last output slice
+        #
+        # preds = []
+        # W = tf.get_variable("W2", shape = [self.config.hidden_unit_size, self.config.output_size], initializer=tf.contrib.layers.xavier_initializer() )
+        # b = tf.get_variable("b2", shape = [self.config.output_size], initializer=tf.constant_initializer(0) )
+        # # #
+        # for time_step in range(self.config.max_length):
+        #     out = tf.gather(outputs, ( time_step ) )
+        #     y_t = tf.matmul(out, W) + b
+        #     preds.append(y_t)
+        # # return (tf.reduce_sum(tf.pack(preds, axis=1)))
+        # probs = tf.nn.softmax(tf.pack(preds, axis=1))
+        # preds = tf.pack(preds, axis=1)
+
         probs = tf.nn.softmax(outputs)
 
-        return (probs,outputs[:, 0:outputs.get_shape()[1]-1,:])
+        return probs
+
 
     def calc_loss(self, preds):
         #preds is of the form: (batch_size, max_length, output_size)
@@ -175,9 +202,9 @@ class RNN_LSTM:
         #calculate loss across every pair of words
         # one_hot_mats = tf.one_hot(self.vocab_by_inds, depth = self.config.batch_size, axis = 0)
         # loss = 0
-        pred = preds[1] #get the raw predicted not in probability form
+     #get the raw predicted not in probability form
 
-        losses =tf.reshape(tf.nn.sparse_softmax_cross_entropy_with_logits(labels = self.labels_placeholder, logits = pred), [-1])
+        losses =tf.reshape(tf.nn.sparse_softmax_cross_entropy_with_logits(labels = self.labels_placeholder, logits = preds), [-1])
         mask = tf.reshape(self.mask_placeholder[:, 0:self.mask_placeholder.get_shape()[1]-1], [-1])
         loss = tf.reduce_mean(tf.boolean_mask(losses, mask))
         # mask = tf.reshape(self.mask_placeholder, [-1])
@@ -190,20 +217,6 @@ class RNN_LSTM:
         # print self.mask_placeholder.get_shape()
 
         return loss
-
-        # for time_step in range(self.config.max_length-1):
-        #     # print  self.mask_placeholder[:,time_step].get_shape()
-        #     loss =tf.nn.sparse_softmax_cross_entropy_with_logits(labels = self.labels_placeholder[:,time_step], logits = pred[:, time_step, :])
-        #
-        #     losses +=(tf.reduce_sum(tf.boolean_mask(loss, self.mask_placeholder[:,time_step])))
-            # one_hot = tf.transpose(tf.gather(one_hot_mats, self.labels_placeholder[:,time_step]))
-            # loss += -tf.reduce_sum(tf.matmul(tf.log(preds[:, time_step, :]), one_hot))
-
-        # loss = tf.nn.sparse_softmax_cross_entropy_with_logits(preds, self.labels_placeholder)
-        # loss = tf.boolean_mask(loss, self.mask_placeholder)
-        # loss = tf.reduce_mean(loss)
-        # return loss
-        # return losses/self.config.batch_size
 
     def back_prop(self, loss):
 
@@ -345,18 +358,21 @@ def main():
             #
 
             #evaluate training perplexity
-            masks = get_masks(test, c.max_length)
+            test_size = len(test)
+            for k, indices in enumerate(get_batch(test_size, 100)):
+                test_batch = test[indices]
+                masks = get_masks(test_batch, c.max_length)
 
-            seq_len = [len(i) for i in test]
-            batch_x = generate_padded_seq(c.max_length, c.output_size, test)
-            batch_y = [i[1:] for i in batch_x]
-            feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
+                seq_len = [len(i) for i in test_batch]
+                batch_x = generate_padded_seq(c.max_length, c.output_size, test_batch)
+                batch_y = [i[1:] for i in batch_x]
+                feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
 
-            perplexities = sess.run(m.error, feed_dict=feed)
+                perplexities = sess.run(m.error, feed_dict=feed)
 
-            # seq_inds = np.arange(len(seq_len))
-            # print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
-            print "Epoch: " + str(j) + " average test perplexity: " + str(perplexities)
+                # seq_inds = np.arange(len(seq_len))
+                # print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
+                print "Epoch: " + str(j) + " average test perplexity for batch " + str(k) +  ':' + str(perplexities)
 
 
 if __name__ == '__main__':
