@@ -298,12 +298,12 @@ def main():
     def get_indices(sent):
         return [vocabs[i] for i in sent]
 
-    sample = np.array([get_indices(j) for j in all_dat['personalfinance']][0:250])
+    sample = np.array([get_indices(j) for j in all_dat['personalfinance']][0:10])
     # subsample_y = [get_indices(j) for j[1:] in all_dat['personalfinance']][0:100]
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 15)
+    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 1)
 
     idx = np.arange(len(sample))
 
@@ -324,6 +324,7 @@ def main():
 
             m.run_epoch(sess, np.array(train))
 
+            saver.save(sess, "code/trainer/epoch_" + str(i) + ".ckpt")
         #evaluate training perplexity
         masks = get_masks(train, c.max_length)
 
@@ -332,7 +333,7 @@ def main():
         batch_y = [i[1:] for i in batch_x]
         feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
 
-        perplexities = sess.run(m.error, feed_dict=feed )
+        perplexities = sess.run(m.error, feed_dict=feed)
 
         seq_inds = np.arange(len(seq_len))
         print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
