@@ -8,8 +8,8 @@ reference: http://scikit-learn.org/stable/auto_examples/model_selection/plot_con
 ''' 
 
 # Load libraries
-import matplotlib
-matplotlib.use('Agg')
+#mport matplotlib
+#matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import itertools
@@ -19,7 +19,7 @@ def plot_confusion_matrix(cm, classes,
                           normalize=False,
                           title='Confusion Matrix',
                           cmap=plt.cm.Blues, 
-                          save_address = r'/home/cs224n/CS-224N-Final-Project/data//'):
+                          save_address = '/Users/tylerchase/Documents/Stanford_Classes/CS224n_Natural_Language_Processing_with_Deep_Learning/final project/data//'):
     """
     This function prints and plots the confusion matrix.
     Normalization can be applied by setting `normalize=True`.
@@ -28,7 +28,7 @@ def plot_confusion_matrix(cm, classes,
     plt.title(title)
     plt.colorbar()
     tick_marks = np.arange(len(classes))
-    plt.xticks(tick_marks, classes, rotation=45)
+    plt.xticks(tick_marks, classes, rotation=75)
     plt.yticks(tick_marks, classes)
 
     if normalize:
@@ -41,7 +41,7 @@ def plot_confusion_matrix(cm, classes,
 
     thresh = cm.max() / 2.
     for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
-        plt.text(j, i, cm[i, j],
+        plt.text(j, i, round(cm[i, j],2),
                  horizontalalignment="center",
                  color="white" if cm[i, j] > thresh else "black")
 
@@ -52,7 +52,7 @@ def plot_confusion_matrix(cm, classes,
 
 def main ():
     # Load confusion matrix from data folder
-    address = r'/home/cs224n/CS-224N-Final-Project/data//'
+    address = r'/Users/tylerchase/Documents/Stanford_Classes/CS224n_Natural_Language_Processing_with_Deep_Learning/final project/data//'
     conf = np.load(address + 'confusion_mat.npy')
     classes = ['AskReddit', 'LifeProTips', 'nottheonion', 'news', 'science', 
 	       'trees', 'tifu', 'personalfinance', 'mildlyinteresting', 'interestingasfuck']
