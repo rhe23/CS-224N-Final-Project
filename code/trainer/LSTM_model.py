@@ -329,20 +329,20 @@ def main():
 
             saver.save(sess, "code/trainer/epoch_" + str(j) + ".ckpt")
 
-            #evaluate training perplexity
-            masks = get_masks(train, c.max_length)
-
-            seq_len = [len(i) for i in train]
-            batch_x = generate_padded_seq(c.max_length, c.output_size, train)
-            batch_y = [i[1:] for i in batch_x]
-            feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
-
-            perplexities = sess.run(m.error, feed_dict=feed)
-
-            # seq_inds = np.arange(len(seq_len))
-            # print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
-            print "Epoch: " + str(j) + " average training perplexity: " + str(perplexities)
-
+            # #evaluate training perplexity
+            # masks = get_masks(train, c.max_length)
+            #
+            # seq_len = [len(i) for i in train]
+            # batch_x = generate_padded_seq(c.max_length, c.output_size, train)
+            # batch_y = [i[1:] for i in batch_x]
+            # feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
+            #
+            # perplexities = sess.run(m.error, feed_dict=feed)
+            #
+            # # seq_inds = np.arange(len(seq_len))
+            # # print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
+            # print "Epoch: " + str(j) + " average training perplexity: " + str(perplexities)
+            #
 
             #evaluate training perplexity
             masks = get_masks(test, c.max_length)
