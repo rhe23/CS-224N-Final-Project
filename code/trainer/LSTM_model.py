@@ -48,7 +48,7 @@ def get_dev_test_sets(dev_size, test_size, training_indices):
     #returns a list of indices for both training and dev sets
 
     total_sizes = dev_size+test_size
-    temp_inds = np.random.choice(training_indices, math.floor(total_sizes*len(training_indices)), replace = False)
+    temp_inds = np.random.choice(training_indices, int(math.floor(total_sizes*len(training_indices))), replace = False)
     training_inds = [i for i in training_indices if i not in temp_inds]
     dev_inds = temp_inds[:len(temp_inds)/2]
     test_inds = temp_inds[len(temp_inds)/2:]
