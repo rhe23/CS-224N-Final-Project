@@ -339,7 +339,7 @@ def main():
         for j in range(n_epochs):
             print "Epoch: " + str(j)
             #
-            # m.run_epoch(sess, np.array(train))
+            m.run_epoch(sess, np.array(train))
 
 
             # #evaluate training perplexity
