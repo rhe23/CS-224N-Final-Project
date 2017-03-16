@@ -12,7 +12,7 @@ max_length = 0
 
 class Config:
 
-    def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 10, batch_size = 256, n_epochs = 10):
+    def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 10, batch_size = 256, n_epochs = 10, num_layers =1):
         self.dev_set_size =0.1
         self.test_set_size = 0
         self.classify= False #determines if we're running a classification
@@ -25,7 +25,8 @@ class Config:
         self.n_epoches = n_epochs
         self.embed_size =embed_size
         self.output_size = output_size #the size of the vocab
-        self.learning_rate = 0.1
+        self.learning_rate = 0.05
+        self.num_layers = num_layers
 
 def generate_padded_seq(max_length, vocab_length, sentences):
     return np.array([sentence + [vocab_length-1]*(max_length-len(sentence)) for sentence in sentences], dtype=np.int32)
@@ -95,6 +96,7 @@ class RNN_LSTM:
         self.cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.hidden_unit_size,
                                         initializer=tf.contrib.layers.xavier_initializer(), activation=tf.sigmoid)
         self.cell = tf.nn.rnn_cell.DropoutWrapper(cell = self.cell, output_keep_prob=self.dropout_placeholder)
+        # self.cell = tf.contrib.rnn.MultiRNNCell([self.cell]*self.config.num_layers, state_is_tuple=False)
         self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
 
     def training(self): #main training function for the model
@@ -283,8 +285,8 @@ def train(args):
             sess.run(init)
             # loss = m.test_session(sess, train)
             best_perplexity = np.inf
-            for e in range(n_epochs):
-                print "Epoch: " + str(e)
+            for epoch in range(n_epochs):
+                print "Epoch: " + str(epoch)
 
                 m.run_epoch(sess, np.array(train))
 
@@ -312,40 +314,40 @@ def train(args):
                 if (total_perplexity/total_batches) < best_perplexity:
                     best_perplexity = (total_perplexity/total_batches)
                     print "New Best Perplexity: " + str(best_perplexity)
-                    saver.save(sess, "code/trainer/" + r + "_epoch_" + str(e) + ".ckpt")
+                saver.save(sess, "code/trainer/results/" + r + "_epoch_" + str(epoch) + ".ckpt")
 
-                    # #generate outputted sentence using the best weights:
-                    predicted_indices = []
-                    actual_sentences = []
-                    for k, indices in enumerate(get_batch(test_size, 2)):
+                # #generate outputted sentence using the best weights:
+                predicted_indices = []
+                actual_sentences = []
+                for k, indices in enumerate(get_batch(test_size, 50)):
 
-                        test_batch = test[indices]
-                        # actual_sentences += test_batch
-                        masks = get_masks(test_batch, c.max_length)
+                    test_batch = test[indices]
+                    # actual_sentences += test_batch
+                    masks = get_masks(test_batch, c.max_length)
 
-                        for case in test_batch:
-                            actual_sentences.append(get_words(case))
+                    for case in test_batch:
+                        actual_sentences.append(get_words(case))
 
-                        seq_len = [len(i) for i in test_batch]
-                        batch_x = generate_padded_seq(c.max_length, c.output_size, test_batch)
-                        batch_y = [i[1:] for i in batch_x]
-                        feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
+                    seq_len = [len(i) for i in test_batch]
+                    batch_x = generate_padded_seq(c.max_length, c.output_size, test_batch)
+                    batch_y = [i[1:] for i in batch_x]
+                    feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
 
-                        probabilities_unmasked = sess.run(m.probs, feed_dict= feed)
+                    probabilities_unmasked = sess.run(m.probs, feed_dict= feed)
 
-                        seq_inds = np.arange(len(seq_len))
+                    seq_inds = np.arange(len(seq_len))
 
-                        for row in seq_inds:
-                            predicted_indices.append(probabilities_unmasked[row][0:seq_len[row]])
+                    for row in seq_inds:
+                        predicted_indices.append(probabilities_unmasked[row][0:seq_len[row]])
 
-                        predicted_words = [get_words(j) for j in predicted_indices]
-                    predicted_pairs = zip(predicted_words, actual_sentences)
+                    predicted_words = [get_words(j) for j in predicted_indices]
+                predicted_pairs = zip(predicted_words, actual_sentences)
 
-                    with open('./code/trainer/results/' + r + '_epoch_' + str(e) + '.csv', 'wb') as out:
-                        csv_out=csv.writer(out)
-                        csv_out.writerow(['Predicted','Actual'])
-                        for row in predicted_pairs:
-                            csv_out.writerow(row)
+                with open('./code/trainer/results/' + r + '_epoch_' + str(epoch) + '.csv', 'wb') as out:
+                    csv_out=csv.writer(out)
+                    csv_out.writerow(['Predicted','Actual'])
+                    for row in predicted_pairs:
+                        csv_out.writerow(row)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='LSTM model')
