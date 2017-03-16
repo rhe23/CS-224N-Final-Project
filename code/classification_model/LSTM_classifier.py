@@ -218,7 +218,7 @@ class Classification:
         return weight, bias
         
 
-def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.185, max_sentence_length=20, layers=1, train_percent = 80, dev_percent = 10, plot_confusion = False):
+def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.185, max_sentence_length=20, layers=1, train_percent = 80, dev_percent = 10, plot_confusion = False, save_flag = False):
     
     # Load embeddings
     # Data address
@@ -242,6 +242,8 @@ def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.1
     target = tf.placeholder(tf.float32, [None, class_size])
     dropout = tf.placeholder(tf.float32)   
     model = Classification(config, embeddings, data, target, dropout)
+    if save_flag == True:    
+        saver = tf.train.Saver()
     sess = tf.Session()
     sess.run( tf.global_variables_initializer() )
     for epoch in xrange(epoch_size):
@@ -277,6 +279,10 @@ def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.1
         conf = confusion_matrix(np.argmax(test['y'], axis = 1), np.argmax(predictions, axis = 1))
 	np.save(address + 'confusion_mat.npy', conf)
 	print(conf)
+    
+    if save_flag == True: 
+        # Save trained model to data folder
+        saver.save(sess, address + 'classification_model')
 
     return(error_train, error_test)
 
@@ -285,5 +291,6 @@ def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.1
 if __name__ == '__main__':
     address = r'/home/cs224n/CS-224N-Final-Project/data//'
     error_train, error_test = run_classifier(address, epoch_size = 10, minibatch_size = 100, 
-					     train_percent = 80, dev_percent = 10, plot_confusion = True)
+					     train_percent = 80, dev_percent = 10, 
+                                             plot_confusion = True, save_flag = True)
     
