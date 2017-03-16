@@ -283,8 +283,8 @@ def train(args):
             sess.run(init)
             # loss = m.test_session(sess, train)
             best_perplexity = np.inf
-            for j in range(n_epochs):
-                print "Epoch: " + str(j)
+            for e in range(n_epochs):
+                print "Epoch: " + str(e)
 
                 m.run_epoch(sess, np.array(train))
 
@@ -341,7 +341,7 @@ def train(args):
                         predicted_words = [get_words(j) for j in predicted_indices]
                     predicted_pairs = zip(predicted_words, actual_sentences)
 
-                    with open('./code/trainer/results/' + r + '_epoch_' + str(j) + '.csv', 'wb') as out:
+                    with open('./code/trainer/results/' + r + '_epoch_' + str(e) + '.csv', 'wb') as out:
                         csv_out=csv.writer(out)
                         csv_out.writerow(['Predicted','Actual'])
                         for row in predicted_pairs:
