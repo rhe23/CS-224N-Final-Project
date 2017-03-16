@@ -312,7 +312,7 @@ def train(args):
                 if (total_perplexity/total_batches) < best_perplexity:
                     best_perplexity = (total_perplexity/total_batches)
                     print "New Best Perplexity: " + str(best_perplexity)
-                    saver.save(sess, "code/trainer/" + r + "_epoch_" + str(j) + ".ckpt")
+                    saver.save(sess, "code/trainer/" + r + "_epoch_" + str(e) + ".ckpt")
 
                     # #generate outputted sentence using the best weights:
                     predicted_indices = []
