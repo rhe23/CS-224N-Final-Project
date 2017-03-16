@@ -239,9 +239,9 @@ class RNN_LSTM:
 def train(args):
     n_epochs = 20
     embeddings = get_embeddings()
-    embeddings = np.vstack([embeddings, np.zeros(embeddings.shape[1])])
+    # embeddings = np.vstack([embeddings, np.zeros(embeddings.shape[1])])
     all_dat = collections.defaultdict(list)
-    raw_data =  get_data(path = './data/2015_data')
+    raw_data =  get_data(path = './data/2015_data_tokenzed.pkl')
     for r, post in raw_data:
         all_dat[r].append(post)
 
@@ -285,10 +285,10 @@ def train(args):
             best_perplexity = np.inf
             for j in range(n_epochs):
                 print "Epoch: " + str(j)
-                #
+
                 m.run_epoch(sess, np.array(train))
 
-                # #evaluate training perplexity
+                # # #evaluate training perplexity
                 test_size = len(dev)
                 total_perplexity = 0
                 total_batches = 0
