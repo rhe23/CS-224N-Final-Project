@@ -286,7 +286,7 @@ def train(args):
             # loss = m.test_session(sess, train)
             best_perplexity = np.inf
             for epoch in range(n_epochs):
-                print "Epoch: " + str(epoch)
+                print "Epoch: " + str(epoch + 1)
 
                 m.run_epoch(sess, np.array(train))
 
@@ -309,12 +309,12 @@ def train(args):
                     total_perplexity += perplexities
                     # seq_inds = np.arange(len(seq_len))
                     # print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
-                    print "Epoch: " + str(j) + " average test perplexity for batch " + str(k) +  ':' + str(perplexities)
+                    print "Epoch: " + str(epoch + 1) + " average test perplexity for batch " + str(k + 1) +  ':' + str(perplexities)
 
                 if (total_perplexity/total_batches) < best_perplexity:
                     best_perplexity = (total_perplexity/total_batches)
                     print "New Best Perplexity: " + str(best_perplexity)
-                saver.save(sess, "code/trainer/results/" + r + "_epoch_" + str(epoch) + ".ckpt")
+                saver.save(sess, "code/trainer/results/" + r + "_epoch_" + str(epoch + 1) + ".ckpt")
 
                 # #generate outputted sentence using the best weights:
                 predicted_indices = []
@@ -343,7 +343,7 @@ def train(args):
                     predicted_words = [get_words(j) for j in predicted_indices]
                 predicted_pairs = zip(predicted_words, actual_sentences)
 
-                with open('./code/trainer/results/' + r + '_epoch_' + str(epoch) + '.csv', 'wb') as out:
+                with open('./code/trainer/results/' + r + '_epoch_' + str(epoch + 1) + '_predictions.csv', 'wb') as out:
                     csv_out=csv.writer(out)
                     csv_out.writerow(['Predicted','Actual'])
                     for row in predicted_pairs:
