@@ -7,7 +7,7 @@ from processing_utils import get_embeddings, get_data, get_batch, get_dev_test_s
 
 
 os.chdir("../..")
-print os.getcwd()
+
 max_length = 0
 
 class Config:
@@ -349,12 +349,12 @@ def train(args):
                     batch_y = [i[1:] for i in batch_x]
                     feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
 
-                    probabilities_unmasked = sess.run(m.probs, feed_dict= feed)
-                    print probabilities_unmasked
+                    predicted_inds_unmasked = sess.run(m.probs, feed_dict= feed)
+
                     seq_inds = np.arange(len(seq_len))
 
                     for row in seq_inds:
-                        predicted_indices.append(probabilities_unmasked[row][0:seq_len[row]])
+                        predicted_indices.append(predicted_inds_unmasked[row][0:seq_len[row]])
 
                     predicted_words = [get_words(j) for j in predicted_indices]
                 predicted_pairs = zip(predicted_words, actual_sentences)
