@@ -248,8 +248,8 @@ class RNN_LSTM:
 
 def train(args):
     n_epochs = 30
-    # embeddings = get_embeddings()
-    embeddings = np.load('./data/final_large_weights.npy')
+    embeddings = get_embeddings(embed_path='./data/new_embeddings_final_filtered.pkl')
+    # embeddings = np.load('./data/final_large_weights.npy')
     # embeddings = np.vstack([embeddings, np.zeros(embeddings.shape[1])])
     all_dat = collections.defaultdict(list)
     raw_data =  get_data(path = './data/2015_data_tokenzed.pkl')
@@ -264,7 +264,7 @@ def train(args):
     #         vocabs[v[1]] = v[0]
 
     #get vocab:
-    with open('./data/large_vocab', 'rb') as f:
+    with open('./data/large_vocab_final_filtered.pkl', 'rb') as f:
         vocabs = cPickle.load(f)
         f.close()
 
@@ -365,17 +365,17 @@ def train(args):
                     for row in predicted_pairs:
                         csv_out.writerow(row)
 
-            with open('./code/trainer/diag/diagnoistics.csv', 'a') as diag_out:
+            with open('./code/trainer/diag/diagnostics.csv', 'a') as diag_out:
              csv_diag_out = csv.writer(diag_out)
              csv_diag_out.writerow([args.subreddit, c.hidden_unit_size. c.learning_rate, c.embed_size])
 
 def generate(args):
 
-    embeddings = get_embeddings()
+    embeddings = get_embeddings(embed_path='./data/new_embeddings_final_filtered.pkl')
 
     # vocabs = collections.defaultdict(str)
 
-    with open('./data/large_vocab', 'rb') as f:
+    with open('./data/large_vocab_final_filtered.pkl', 'rb') as f:
         vocabs = cPickle.load(f)
         f.close()
 
