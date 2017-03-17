@@ -12,7 +12,7 @@ max_length = 0
 
 class Config:
 
-    def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 100, batch_size = 256, n_epochs = 10, num_layers =1):
+    def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 100, batch_size = 256, n_epochs = 10, num_layers =1, learning_rate=0.05):
         self.dev_set_size =0.1
         self.test_set_size = 0
         self.classify= False #determines if we're running a classification
@@ -25,7 +25,7 @@ class Config:
         self.n_epoches = n_epochs
         self.embed_size =embed_size
         self.output_size = output_size #the size of the vocab
-        self.learning_rate = 0.05
+        self.learning_rate = learning_rate
         self.num_layers = num_layers
 
 def generate_padded_seq(max_length, vocab_length, sentences):
@@ -284,16 +284,16 @@ def train(args):
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36)
+    config_file = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, learning_rate = args.learningrate, hidden_unit_size=args.hiddensize)
 
     idx = np.arange(len(sample))
 
-    train_inds, dev_inds, test_inds = get_dev_test_sets(dev_size = c.dev_set_size, test_size = c.test_set_size, training_indices = idx)
+    train_inds, dev_inds, test_inds = get_dev_test_sets(dev_size = config_file.dev_set_size, test_size = config_file.test_set_size, training_indices = idx)
 
     train, dev, test = sample[train_inds],  sample[dev_inds], sample[test_inds]
 
     with tf.Graph().as_default():
-        m = RNN_LSTM(embeddings = embeddings, config = c)
+        m = RNN_LSTM(embeddings = embeddings, config = config_file)
         init = tf.global_variables_initializer()
         saver = tf.train.Saver()
 
@@ -314,10 +314,10 @@ def train(args):
 
                     total_batches += 1
                     test_batch = test[indices]
-                    masks = get_masks(test_batch, c.max_length)
+                    masks = get_masks(test_batch, config_file.max_length)
 
                     seq_len = [len(i) for i in test_batch]
-                    batch_x = generate_padded_seq(c.max_length, c.output_size, test_batch)
+                    batch_x = generate_padded_seq(config_file.max_length, config_file.output_size, test_batch)
                     batch_y = [i[1:] for i in batch_x]
                     feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
 
@@ -339,13 +339,13 @@ def train(args):
 
                     test_batch = test[indices]
                     # actual_sentences += test_batch
-                    masks = get_masks(test_batch, c.max_length)
+                    masks = get_masks(test_batch, config_file.max_length)
 
                     for case in test_batch:
                         actual_sentences.append(get_words(case))
 
                     seq_len = [len(i) for i in test_batch]
-                    batch_x = generate_padded_seq(c.max_length, c.output_size, test_batch)
+                    batch_x = generate_padded_seq(config_file.max_length, config_file.output_size, test_batch)
                     batch_y = [i[1:] for i in batch_x]
                     feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
 
@@ -366,8 +366,8 @@ def train(args):
                         csv_out.writerow(row)
 
             with open('./code/trainer/diag/diagnostics.csv', 'a') as diag_out:
-             csv_diag_out = csv.writer(diag_out)
-             csv_diag_out.writerow([args.subreddit, c.hidden_unit_size. c.learning_rate, c.embed_size])
+                csv_diag_out = csv.writer(diag_out)
+                csv_diag_out.writerow([args.subreddit, str(config_file.hidden_unit_size), str(config_file.learning_rate), str(config_file.embed_size)])
 
 def generate(args):
 
@@ -439,7 +439,8 @@ if __name__ == '__main__':
     parse = subparser.add_parser('train')
     parse.set_defaults(function = train)
     parse.add_argument('-r', '--subreddit', type =str, choices= ['AskReddit', 'LifeProTips', 'nottheonion', 'news', 'science', 'trees', 'tifu', 'personalfinance', 'mildlyinteresting', 'interestingasfuck'])
-
+    parse.add_argument('-lr', '--learningrate', type = float)
+    parse.add_argument('-hs', '--hiddensize', type =int)
 
     parse = subparser.add_parser('generate') #generate phrases
     parse.set_defaults(function = generate)
