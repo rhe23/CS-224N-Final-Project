@@ -17,7 +17,7 @@ class Config:
         self.test_set_size = 0
         self.classify= False #determines if we're running a classification
         self.n_features = n_features #number of features for each word in the data
-        self.drop_out = 1
+        self.drop_out = 0.5
         self.n_classes = n_classes
         self.max_length = max_length #longest length of all our sentences
         self.hidden_unit_size = hidden_unit_size
@@ -54,6 +54,7 @@ class RNN_LSTM:
         self.train_op = self.back_prop(self.loss) #optimization step
         self.error = self.return_perplexity(self.loss)
         self.probs = self.get_probabilities(self.pred)
+        self.last_state = self.get_last_state(self.pred)
 
     def add_placeholders(self):
 
@@ -94,7 +95,7 @@ class RNN_LSTM:
     def set_cell(self):
 
         self.cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.hidden_unit_size,
-                                        initializer=tf.contrib.layers.xavier_initializer(), activation=tf.sigmoid)
+                                        initializer=tf.contrib.layers.xavier_initializer(), activation=tf.sigmoid, state_is_tuple=True)
         self.cell = tf.nn.rnn_cell.DropoutWrapper(cell = self.cell, output_keep_prob=self.dropout_placeholder)
         # self.cell = tf.contrib.rnn.MultiRNNCell([self.cell]*self.config.num_layers, state_is_tuple=False)
         self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
@@ -106,7 +107,7 @@ class RNN_LSTM:
         self.set_cell()
         # state = tf.Variable(self.cell.zero_state(self.config.batch_size, dtype = tf.float32), trainable=False) #initial state
 
-        outputs, states = tf.nn.dynamic_rnn(self.cell, inputs = self.x, dtype = tf.float32, sequence_length=self.sequence_placeholder)
+        outputs, last_state = tf.nn.dynamic_rnn(self.cell, inputs = self.x, dtype = tf.float32, sequence_length=self.sequence_placeholder)
         # outputs = tf.transpose(outputs, [1,0,2])
         # # # # Gather last output slice
         #
@@ -123,27 +124,35 @@ class RNN_LSTM:
         # preds = tf.pack(preds, axis=1)
 
         # probs = tf.nn.softmax(outputs)
+        # return outputs
+        # return (last_state, outputs[:, 0:outputs.get_shape()[1]-1,:])
+        return outputs
 
-        return outputs[:, 0:outputs.get_shape()[1]-1,:]
+
+    def get_last_state(self, preds):
+
+        return tf.reshape(tf.nn.softmax(preds), [self.config.output_size])
+
 
     def get_probabilities(self, preds):
 
-        return (tf.argmax(preds, axis=2))
+        remove_last_state = preds[:, 0:preds.get_shape()[1]-1,:]
+        # return (remove_last_state)
+        return (tf.argmax(remove_last_state, axis=2))
 
-        return (tf.nn.softmax(preds), tf.shape(tf.nn.softmax(preds)))
+        # return (tf.nn.softmax(preds), tf.shape(tf.nn.softmax(preds)))
         # return (tf.shape(preds), tf.shape(self.sequence_placeholder))
         # return (tf.shape(preds), tf.shape(self.mask_placeholder[:, 0:self.mask_placeholder.get_shape()[1]-1]))
 
-
     def calc_loss(self, preds):
+        pred = preds[:, 0:preds.get_shape()[1]-1,:]
         #preds is of the form: (batch_size, max_length, output_size)
         #preds[:, time_step,: ] = batch_size x output_size
         #calculate loss across every pair of words
-        # one_hot_mats = tf.one_hot(self.vocab_by_inds, depth = self.config.batch_size, axis = 0)
-        # loss = 0
-     #get the raw predicted not in probability form
 
-        losses =tf.reshape(tf.nn.sparse_softmax_cross_entropy_with_logits(labels = self.labels_placeholder, logits = preds), [-1])
+        #get the raw predicted not in probability form
+
+        losses =tf.reshape(tf.nn.sparse_softmax_cross_entropy_with_logits(labels = self.labels_placeholder, logits = pred), [-1])
         mask = tf.reshape(self.mask_placeholder[:, 0:self.mask_placeholder.get_shape()[1]-1], [-1])
         loss = tf.reduce_mean(tf.boolean_mask(losses, mask))
         # mask = tf.reshape(self.mask_placeholder, [-1])
@@ -237,9 +246,8 @@ class RNN_LSTM:
         loss = session.run([self.loss], feed_dict=feed)
         return loss
 
-
 def train(args):
-    n_epochs = 20
+    n_epochs = 30
     embeddings = get_embeddings()
     # embeddings = np.vstack([embeddings, np.zeros(embeddings.shape[1])])
     all_dat = collections.defaultdict(list)
@@ -268,7 +276,7 @@ def train(args):
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36)
+    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 1)
 
     idx = np.arange(len(sample))
 
@@ -314,7 +322,7 @@ def train(args):
                 if (total_perplexity/total_batches) < best_perplexity:
                     best_perplexity = (total_perplexity/total_batches)
                     print "New Best Perplexity: " + str(best_perplexity)
-                saver.save(sess, "code/trainer/results/" + r + "_epoch_" + str(epoch + 1) + ".ckpt")
+                saver.save(sess, "code/trainer/models/" + r + "/epoch_" + str(epoch + 1) + ".ckpt")
 
                 # #generate outputted sentence using the best weights:
                 predicted_indices = []
@@ -334,7 +342,7 @@ def train(args):
                     feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
 
                     probabilities_unmasked = sess.run(m.probs, feed_dict= feed)
-
+                    print probabilities_unmasked
                     seq_inds = np.arange(len(seq_len))
 
                     for row in seq_inds:
@@ -343,11 +351,69 @@ def train(args):
                     predicted_words = [get_words(j) for j in predicted_indices]
                 predicted_pairs = zip(predicted_words, actual_sentences)
 
-                with open('./code/trainer/results/' + r + '_epoch_' + str(epoch + 1) + '_predictions.csv', 'wb') as out:
+                with open('./code/trainer/results/' + r + '/epoch_' + str(epoch + 1) + '_predictions.csv', 'wb') as out:
                     csv_out=csv.writer(out)
                     csv_out.writerow(['Predicted','Actual'])
                     for row in predicted_pairs:
                         csv_out.writerow(row)
+
+def generate(args):
+
+    embeddings = get_embeddings()
+
+    vocabs = collections.defaultdict(str)
+
+    with open('./data/large_vocab_new.csv') as csvfile:
+        vocab = csv.reader(csvfile)
+        for v in vocab:
+            vocabs[v[1]] = v[0]
+
+    vocabs_reversed = {v: k for k, v in vocabs.iteritems()}
+
+    def get_indices(sent):
+        return [vocabs[i] for i in sent]
+
+    def get_words(sent):
+        return [vocabs_reversed[str(i)] for i in sent]
+
+    model = args.model
+    model_path = './code/trainer/models/' + model +'/'
+
+    c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36) #max length is 1 becuase we want 1 word generated at a time
+
+    with tf.Graph().as_default():
+
+        m = RNN_LSTM(embeddings = embeddings, config = c)
+        saver = tf.train.Saver()
+        init = tf.global_variables_initializer()
+
+        with tf.Session() as session:
+            session.run(init)
+            saver.restore(session, tf.train.latest_checkpoint(model_path))
+
+            current_word = '<start>'
+            sentence = [current_word]
+            #get index of <start> token:
+
+            while current_word != '<end>':
+                current_ind =  vocabs[current_word]
+
+                x = [[current_ind]]
+
+                feed = m.create_feed_dict(inputs_batch=x, seq_length=[1])
+
+                preds = session.run(m.last_state, feed_dict=feed)
+
+                largest_10_inds = preds.argsort()[::-1][:args.numwords]
+                largest_10_unscaled_p = preds[largest_10_inds]
+                scaled_p = largest_10_unscaled_p/sum(largest_10_unscaled_p)
+                current_ind = np.random.choice(largest_10_inds, p = scaled_p)
+
+                current_word = vocabs_reversed[str(current_ind)]
+                sentence.append(current_word)
+
+            print sentence
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='LSTM model')
@@ -358,6 +424,10 @@ if __name__ == '__main__':
     parse.add_argument('-r', '--subreddit', type =str, choices= ['AskReddit', 'LifeProTips', 'nottheonion', 'news', 'science', 'trees', 'tifu', 'personalfinance', 'mildlyinteresting', 'interestingasfuck'])
 
 
+    parse = subparser.add_parser('generate') #generate phrases
+    parse.set_defaults(function = generate)
+    parse.add_argument('-g', '--model', type = str,choices= ['AskReddit', 'LifeProTips', 'nottheonion', 'news', 'science', 'trees', 'tifu', 'personalfinance', 'mildlyinteresting', 'interestingasfuck'])
+    parse.add_argument('-nw', '--numwords', type = int)
     ARGS = parser.parse_args()
     if ARGS.function is not None:
 
