@@ -12,7 +12,7 @@ max_length = 0
 
 class Config:
 
-    def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 10, batch_size = 256, n_epochs = 10, num_layers =1):
+    def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 100, batch_size = 256, n_epochs = 10, num_layers =1):
         self.dev_set_size =0.1
         self.test_set_size = 0
         self.classify= False #determines if we're running a classification
@@ -248,19 +248,27 @@ class RNN_LSTM:
 
 def train(args):
     n_epochs = 30
-    embeddings = get_embeddings()
+    # embeddings = get_embeddings()
+    embeddings = np.load('./data/final_large_weights.npy')
     # embeddings = np.vstack([embeddings, np.zeros(embeddings.shape[1])])
     all_dat = collections.defaultdict(list)
     raw_data =  get_data(path = './data/2015_data_tokenzed.pkl')
     for r, post in raw_data:
         all_dat[r].append(post)
 
-    vocabs = collections.defaultdict(str)
+    # vocabs = collections.defaultdict(str)
 
-    with open('./data/large_vocab_new.csv') as csvfile:
-        vocab = csv.reader(csvfile)
-        for v in vocab:
-            vocabs[v[1]] = v[0]
+    # with open('./data/large_vocab') as csvfile:
+    #     vocab = csv.reader(csvfile)
+    #     for v in vocab:
+    #         vocabs[v[1]] = v[0]
+
+    #get vocab:
+    with open('./data/large_vocab', 'rb') as f:
+        vocabs = cPickle.load(f)
+        f.close()
+
+    vocabs = collections.defaultdict(str, vocabs)
 
     def get_indices(sent):
         return [vocabs[i] for i in sent]
@@ -276,7 +284,7 @@ def train(args):
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 1)
+    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36)
 
     idx = np.arange(len(sample))
 
@@ -322,7 +330,7 @@ def train(args):
                 if (total_perplexity/total_batches) < best_perplexity:
                     best_perplexity = (total_perplexity/total_batches)
                     print "New Best Perplexity: " + str(best_perplexity)
-                saver.save(sess, "code/trainer/models/" + r + "/epoch_" + str(epoch + 1) + ".ckpt")
+                saver.save(sess, "./code/trainer/models/" + r + "/epoch_" + str(epoch + 1) + ".ckpt")
 
                 # #generate outputted sentence using the best weights:
                 predicted_indices = []
@@ -357,16 +365,25 @@ def train(args):
                     for row in predicted_pairs:
                         csv_out.writerow(row)
 
+            with open('./code/trainer/diag/diagnoistics.csv', 'a') as diag_out:
+             csv_diag_out = csv.writer(diag_out)
+             csv_diag_out.writerow([args.subreddit, c.hidden_unit_size. c.learning_rate, c.embed_size])
+
 def generate(args):
 
     embeddings = get_embeddings()
 
-    vocabs = collections.defaultdict(str)
+    # vocabs = collections.defaultdict(str)
 
-    with open('./data/large_vocab_new.csv') as csvfile:
-        vocab = csv.reader(csvfile)
-        for v in vocab:
-            vocabs[v[1]] = v[0]
+    with open('./data/large_vocab', 'rb') as f:
+        vocabs = cPickle.load(f)
+        f.close()
+
+    vocabs = collections.defaultdict(str, vocabs)
+    # with open('./data/large_vocab') as csvfile:
+    #     vocab = csv.reader(csvfile)
+    #     for v in vocab:
+    #         vocabs[v[1]] = v[0]
 
     vocabs_reversed = {v: k for k, v in vocabs.iteritems()}
 
