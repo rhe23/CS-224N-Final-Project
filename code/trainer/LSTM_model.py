@@ -319,7 +319,7 @@ def train(args):
                     seq_len = [len(i) for i in test_batch]
                     batch_x = generate_padded_seq(config_file.max_length, config_file.output_size, test_batch)
                     batch_y = [i[1:] for i in batch_x]
-                    feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
+                    feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= config_file.drop_out, mask_batch=masks, seq_length = seq_len)
 
                     perplexities = sess.run(m.error, feed_dict=feed)
                     total_perplexity += perplexities
@@ -347,7 +347,7 @@ def train(args):
                     seq_len = [len(i) for i in test_batch]
                     batch_x = generate_padded_seq(config_file.max_length, config_file.output_size, test_batch)
                     batch_y = [i[1:] for i in batch_x]
-                    feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
+                    feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= config_file.drop_out, mask_batch=masks, seq_length = seq_len)
 
                     predicted_inds_unmasked = sess.run(m.probs, feed_dict= feed)
 
@@ -367,7 +367,7 @@ def train(args):
 
             with open('./code/trainer/diag/diagnostics.csv', 'a') as diag_out:
                 csv_diag_out = csv.writer(diag_out)
-                csv_diag_out.writerow([args.subreddit, str(config_file.hidden_unit_size), str(config_file.learning_rate), str(config_file.embed_size)])
+                csv_diag_out.writerow([args.subreddit, str(best_perplexity), str(config_file.hidden_unit_size), str(config_file.learning_rate), str(config_file.embed_size)])
 
 def generate(args):
 
