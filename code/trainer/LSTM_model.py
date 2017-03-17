@@ -1,68 +1,20 @@
 import numpy as np
-import math, os, collections, csv
+import argparse, os, collections, csv, sys
 import cPickle
 import tensorflow as tf
-from scipy.sparse import identity
-
+from processing_utils import get_embeddings, get_data, get_batch, get_dev_test_sets, get_masks
 #general structure of tf workflow adapted from HW
 
 
 os.chdir("../..")
-def get_embeddings(embed_path = './data/new_embeddings.pkl'):
-
-    with open(embed_path, 'rb') as f:
-        embeddings = cPickle.load(f)
-        f.close()
-    return embeddings
 
 max_length = 0
 
-def get_data(path):
-
-    with open(path, 'rb') as f:
-        input = cPickle.load(f)
-        f.close()
-
-    return input
-
-
-def add_padding(max_length, sentences, num_vocab):
-    #num_vocab is the total number of vocab in the sentence, we add 1 to this so we don't index into a word
-    #max_length is the max length of the sentence
-    #assume we're getting a list of tokenized sentences with index values
-    #returns a tuple of padded sentences [2,4,5,..,0,0,0,0] ,[true,true,true,...,false,false]
-
-   return zip([[True]*len(i) + [False]*(max_length-len(i)) for i in sentences], [sentence + (max_length - len(sentence))*[num_vocab+1] for sentence in sentences])
-
-
-def get_batch(data_size, batch_size, shuffle=True):
-#returns a list of indices for each batch of data during optimization
-    data_indices = np.arange(data_size)
-    np.random.shuffle(data_indices)
-
-    for i in xrange(0, data_size, batch_size):
-       yield data_indices[i:i+batch_size]
-
-def get_dev_test_sets(dev_size, test_size, training_indices):
-    #dev_size should be a float between 0.0 and 1.0
-    #returns a list of indices for both training and dev sets
-
-    total_sizes = dev_size+test_size
-    temp_inds = np.random.choice(training_indices, int(math.floor(total_sizes*len(training_indices))), replace = False)
-    training_inds = [i for i in training_indices if i not in temp_inds]
-    dev_inds = temp_inds[:len(temp_inds)/2]
-    test_inds = temp_inds[len(temp_inds)/2:]
-
-    return (training_inds, dev_inds, test_inds)
-
-def get_masks(sentences, max_length):
-    return np.array([len(sentence)*[True] + (max_length-len(sentence))*[False] for sentence in sentences])
-
 class Config:
 
-    def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 10, batch_size = 256, n_epochs = 10):
+    def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 10, batch_size = 256, n_epochs = 10, num_layers =1):
         self.dev_set_size =0.1
-        self.test_set_size = 0.1
+        self.test_set_size = 0
         self.classify= False #determines if we're running a classification
         self.n_features = n_features #number of features for each word in the data
         self.drop_out = 1
@@ -73,7 +25,8 @@ class Config:
         self.n_epoches = n_epochs
         self.embed_size =embed_size
         self.output_size = output_size #the size of the vocab
-        self.learning_rate = 0.1
+        self.learning_rate = 0.05
+        self.num_layers = num_layers
 
 def generate_padded_seq(max_length, vocab_length, sentences):
     return np.array([sentence + [vocab_length-1]*(max_length-len(sentence)) for sentence in sentences], dtype=np.int32)
@@ -96,10 +49,11 @@ class RNN_LSTM:
 
         # #build model steps
         self.add_placeholders() #initiate placeholders
-        self.pred = self.prediction() #forward prop
+        self.pred = self.training() #forward prop
         self.loss = self.calc_loss(self.pred) #calculate loss
         self.train_op = self.back_prop(self.loss) #optimization step
-        self.error = self.return_label_probabilities(self.loss)
+        self.error = self.return_perplexity(self.loss)
+        self.probs = self.get_probabilities(self.pred)
 
     def add_placeholders(self):
 
@@ -138,13 +92,16 @@ class RNN_LSTM:
         self.x = embeddings
 
     def set_cell(self):
+
         self.cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.hidden_unit_size,
-                                                initializer=tf.contrib.layers.xavier_initializer(), activation=tf.sigmoid)
+                                        initializer=tf.contrib.layers.xavier_initializer(), activation=tf.sigmoid)
         self.cell = tf.nn.rnn_cell.DropoutWrapper(cell = self.cell, output_keep_prob=self.dropout_placeholder)
+        # self.cell = tf.contrib.rnn.MultiRNNCell([self.cell]*self.config.num_layers, state_is_tuple=False)
         self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
 
-    def prediction(self): #main training function for the model
+    def training(self): #main training function for the model
         #sets up the construction of the graphs such that when session is called these operations will run
+
         self.add_embeddings()
         self.set_cell()
         # state = tf.Variable(self.cell.zero_state(self.config.batch_size, dtype = tf.float32), trainable=False) #initial state
@@ -169,31 +126,13 @@ class RNN_LSTM:
 
         return outputs[:, 0:outputs.get_shape()[1]-1,:]
 
-    def get_predictions(self):
+    def get_probabilities(self, preds):
 
-        self.add_embeddings()
-        self.set_cell()
-        # state = tf.Variable(self.cell.zero_state(self.config.batch_size, dtype = tf.float32), trainable=False) #initial state
+        return (tf.argmax(preds, axis=2))
 
-        outputs, states = tf.nn.dynamic_rnn(self.cell, inputs = self.x, dtype = tf.float32, sequence_length=self.sequence_placeholder)
-        # outputs = tf.transpose(outputs, [1,0,2])
-        # # # # Gather last output slice
-        #
-        # preds = []
-        # W = tf.get_variable("W2", shape = [self.config.hidden_unit_size, self.config.output_size], initializer=tf.contrib.layers.xavier_initializer() )
-        # b = tf.get_variable("b2", shape = [self.config.output_size], initializer=tf.constant_initializer(0) )
-        # # #
-        # for time_step in range(self.config.max_length):
-        #     out = tf.gather(outputs, ( time_step ) )
-        #     y_t = tf.matmul(out, W) + b
-        #     preds.append(y_t)
-        # # return (tf.reduce_sum(tf.pack(preds, axis=1)))
-        # probs = tf.nn.softmax(tf.pack(preds, axis=1))
-        # preds = tf.pack(preds, axis=1)
-
-        probs = tf.nn.softmax(outputs)
-
-        return probs
+        return (tf.nn.softmax(preds), tf.shape(tf.nn.softmax(preds)))
+        # return (tf.shape(preds), tf.shape(self.sequence_placeholder))
+        # return (tf.shape(preds), tf.shape(self.mask_placeholder[:, 0:self.mask_placeholder.get_shape()[1]-1]))
 
 
     def calc_loss(self, preds):
@@ -239,11 +178,14 @@ class RNN_LSTM:
 
         _, loss = sess.run([self.train_op, self.loss], feed_dict=feed)
         # loss = sess.run(self.error, feed_dict=feed)
-        # pred = sess.run(self.pred, feed_dict=feed)
-        # return loss
+        # pred = sess.run(self.probs, feed_dict=feed)
+        # return pred
         return _, loss
 
-    def return_label_probabilities(self, loss):
+    # def predict_on_batch(self, sess, batch):
+    #
+
+    def return_perplexity(self, loss):
         #returns the list of probabilities of the actual word labels for all cases in a given batch
         # t = tf.gather_nd(self.pred[0], tf.stack([tf.tile(tf.expand_dims(tf.range(tf.shape(self.labels_placeholder)[0]), 1), [1, tf.shape(self.labels_placeholder)[1]]), tf.transpose(tf.tile(tf.expand_dims(tf.range(tf.shape(self.labels_placeholder)[1]), 1), [1, tf.shape(self.labels_placeholder)[0]])), self.labels_placeholder], 2))
 
@@ -281,7 +223,7 @@ class RNN_LSTM:
         #
         #     print "test error: " + str(test_error)
 
-    def test_session(self, session, inds): #diagnostic for testing pieces of the model
+    def test_session(self, session, inds): #for debugging purposes only
         #take random sample of training set:
 
         # inds = np.random.choice(self.training_set, math.floor(0.01*len(self.training_set)), replace=False)
@@ -295,12 +237,13 @@ class RNN_LSTM:
         loss = session.run([self.loss], feed_dict=feed)
         return loss
 
-def main():
+
+def train(args):
     n_epochs = 20
     embeddings = get_embeddings()
-    embeddings = np.vstack([embeddings, np.zeros(embeddings.shape[1])])
+    # embeddings = np.vstack([embeddings, np.zeros(embeddings.shape[1])])
     all_dat = collections.defaultdict(list)
-    raw_data =  get_data(path = './data/2015_data')
+    raw_data =  get_data(path = './data/2015_data_tokenzed.pkl')
     for r, post in raw_data:
         all_dat[r].append(post)
 
@@ -314,13 +257,18 @@ def main():
     def get_indices(sent):
         return [vocabs[i] for i in sent]
 
-    r = 'personalfinance'
+    vocabs_reversed = {v: k for k, v in vocabs.iteritems()}
+
+    def get_words(sent):
+        return [vocabs_reversed[str(i)] for i in sent]
+
+    r = args.subreddit
     sample = np.array([get_indices(j) for j in all_dat[r]])
     # subsample_y = [get_indices(j) for j[1:] in all_dat['personalfinance']][0:100]
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 32)
+    c = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36)
 
     idx = np.arange(len(sample))
 
@@ -328,60 +276,93 @@ def main():
 
     train, dev, test = sample[train_inds],  sample[dev_inds], sample[test_inds]
 
-    m = RNN_LSTM(embeddings = embeddings, config = c)
-    init = tf.global_variables_initializer()
-    saver = tf.train.Saver()
+    with tf.Graph().as_default():
+        m = RNN_LSTM(embeddings = embeddings, config = c)
+        init = tf.global_variables_initializer()
+        saver = tf.train.Saver()
 
-    with tf.Session() as sess:
-        sess.run(init)
-        # loss = m.test_session(sess, train)
-        best_perplexity = np.inf
-        for j in range(n_epochs):
-            print "Epoch: " + str(j)
-            #
-            m.run_epoch(sess, np.array(train))
+        with tf.Session() as sess:
+            sess.run(init)
+            # loss = m.test_session(sess, train)
+            best_perplexity = np.inf
+            for epoch in range(n_epochs):
+                print "Epoch: " + str(epoch + 1)
 
+                m.run_epoch(sess, np.array(train))
 
-            # #evaluate training perplexity
-            # masks = get_masks(train, c.max_length)
-            #
-            # seq_len = [len(i) for i in train]
-            # batch_x = generate_padded_seq(c.max_length, c.output_size, train)
-            # batch_y = [i[1:] for i in batch_x]
-            # feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
-            #
-            # perplexities = sess.run(m.error, feed_dict=feed)
-            #
-            # # seq_inds = np.arange(len(seq_len))
-            # # print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
-            # print "Epoch: " + str(j) + " average training perplexity: " + str(perplexities)
-            #
+                # # #evaluate training perplexity
+                test_size = len(dev)
+                total_perplexity = 0
+                total_batches = 0
+                for k, indices in enumerate(get_batch(test_size, 100)):
 
-            #evaluate training perplexity
-            test_size = len(test)
-            total_perplexity = 0
-            total_batches = 0
-            for k, indices in enumerate(get_batch(test_size, 100)):
+                    total_batches += 1
+                    test_batch = test[indices]
+                    masks = get_masks(test_batch, c.max_length)
 
-                total_batches += 1
-                test_batch = test[indices]
-                masks = get_masks(test_batch, c.max_length)
+                    seq_len = [len(i) for i in test_batch]
+                    batch_x = generate_padded_seq(c.max_length, c.output_size, test_batch)
+                    batch_y = [i[1:] for i in batch_x]
+                    feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
 
-                seq_len = [len(i) for i in test_batch]
-                batch_x = generate_padded_seq(c.max_length, c.output_size, test_batch)
-                batch_y = [i[1:] for i in batch_x]
-                feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
+                    perplexities = sess.run(m.error, feed_dict=feed)
+                    total_perplexity += perplexities
+                    # seq_inds = np.arange(len(seq_len))
+                    # print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
+                    print "Epoch: " + str(epoch + 1) + " average test perplexity for batch " + str(k + 1) +  ':' + str(perplexities)
 
-                perplexities = sess.run(m.error, feed_dict=feed)
-                total_perplexity += perplexities
-                # seq_inds = np.arange(len(seq_len))
-                # print "Average Perplexity Across Entire Set: " + str(sum([np.prod(perplexities[i][0:seq_len[i]])**(-1/seq_len[i]) for i in seq_inds])/len(seq_inds))
-                print "Epoch: " + str(j) + " average test perplexity for batch " + str(k) +  ':' + str(perplexities)
+                if (total_perplexity/total_batches) < best_perplexity:
+                    best_perplexity = (total_perplexity/total_batches)
+                    print "New Best Perplexity: " + str(best_perplexity)
+                saver.save(sess, "code/trainer/results/" + r + "_epoch_" + str(epoch + 1) + ".ckpt")
 
-            if (total_perplexity/total_batches) < best_perplexity:
-                best_perplexity = (total_perplexity/total_batches)
-                print "New Best Perplexity: " + str(best_perplexity)
-                saver.save(sess, "code/trainer/" + r + "_epoch_" + str(j) + ".ckpt")
+                # #generate outputted sentence using the best weights:
+                predicted_indices = []
+                actual_sentences = []
+                for k, indices in enumerate(get_batch(test_size, 50)):
+
+                    test_batch = test[indices]
+                    # actual_sentences += test_batch
+                    masks = get_masks(test_batch, c.max_length)
+
+                    for case in test_batch:
+                        actual_sentences.append(get_words(case))
+
+                    seq_len = [len(i) for i in test_batch]
+                    batch_x = generate_padded_seq(c.max_length, c.output_size, test_batch)
+                    batch_y = [i[1:] for i in batch_x]
+                    feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= c.drop_out, mask_batch=masks, seq_length = seq_len)
+
+                    probabilities_unmasked = sess.run(m.probs, feed_dict= feed)
+
+                    seq_inds = np.arange(len(seq_len))
+
+                    for row in seq_inds:
+                        predicted_indices.append(probabilities_unmasked[row][0:seq_len[row]])
+
+                    predicted_words = [get_words(j) for j in predicted_indices]
+                predicted_pairs = zip(predicted_words, actual_sentences)
+
+                with open('./code/trainer/results/' + r + '_epoch_' + str(epoch + 1) + '_predictions.csv', 'wb') as out:
+                    csv_out=csv.writer(out)
+                    csv_out.writerow(['Predicted','Actual'])
+                    for row in predicted_pairs:
+                        csv_out.writerow(row)
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='LSTM model')
+    subparser = parser.add_subparsers()
+
+    parse = subparser.add_parser('train')
+    parse.set_defaults(function = train)
+    parse.add_argument('-r', '--subreddit', type =str, choices= ['AskReddit', 'LifeProTips', 'nottheonion', 'news', 'science', 'trees', 'tifu', 'personalfinance', 'mildlyinteresting', 'interestingasfuck'])
+
+
+    ARGS = parser.parse_args()
+    if ARGS.function is not None:
+
+        ARGS.function(ARGS)
+
+    else:
+
+        sys.exit(1)
