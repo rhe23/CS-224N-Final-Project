@@ -7,7 +7,7 @@ from processing_utils import get_embeddings, get_data, get_batch, get_dev_test_s
 
 
 os.chdir("../..")
-
+print os.getcwd()
 max_length = 0
 
 class Config:
@@ -276,7 +276,7 @@ def train(args):
     vocabs_reversed = {v: k for k, v in vocabs.iteritems()}
 
     def get_words(sent):
-        return [vocabs_reversed[str(i)] for i in sent]
+        return [vocabs_reversed[i] for i in sent]
 
     r = args.subreddit
     sample = np.array([get_indices(j) for j in all_dat[r]])
@@ -391,7 +391,7 @@ def generate(args):
         return [vocabs[i] for i in sent]
 
     def get_words(sent):
-        return [vocabs_reversed[str(i)] for i in sent]
+        return [vocabs_reversed[i] for i in sent]
 
     model = args.model
     model_path = './code/trainer/models/' + model +'/'
@@ -426,7 +426,7 @@ def generate(args):
                 scaled_p = largest_10_unscaled_p/sum(largest_10_unscaled_p)
                 current_ind = np.random.choice(largest_10_inds, p = scaled_p)
 
-                current_word = vocabs_reversed[str(current_ind)]
+                current_word = vocabs_reversed[current_ind]
                 sentence.append(current_word)
 
             print sentence
