@@ -182,10 +182,18 @@ class GloveTrainer:
             cost += weighted_cost_inner * cost_inner
         return cost
 
-    def train(self, iters, v_dim, alpha, x_max, batch_size, learning_rate, save_intermediate_path, opt_method):
+    def train(self, iters, v_dim, alpha, x_max, batch_size, learning_rate, save_intermediate_path, opt_method, saved_weights_path):
         data_type=np.float64
-        self.W = np.random.rand(self.V, v_dim)
-        self.W_tilde = np.random.rand(self.V, v_dim)
+        if saved_weights_path:
+            W_1 = np.load(saved_weights_path + 'W_1.pkl')
+            W_2 = np.load(saved_weights_path + 'W_2.pkl')
+            self.W = np.vstack((W_1, W_2))
+            W_1 = np.load(saved_weights_path + 'W_tilde_1.pkl')
+            W_2 = np.load(saved_weights_path + 'W_tilde_2.pkl')
+            self.W_tilde = np.vstack((W_1, W_2))
+        else:
+            self.W = np.random.rand(self.V, v_dim)
+            self.W_tilde = np.random.rand(self.V, v_dim)
         self.b = np.zeros((self.V,), dtype=data_type)
         self.b_tilde = np.zeros((self.V,), dtype=data_type)
 
@@ -220,7 +228,7 @@ class GloveTrainer:
             print "Cost for Iteration " + str(i) + " : " + str(cost)
             print "Time elapsed: {}s".format(end - start)
             if save_intermediate_path:
-                if i % 10 == 0:
+                if i % 10 == 5:
                     self.export_weights(save_intermediate_path + "_iter{}".format(i))
 
     """some diagnostic tools for the trained embeddings. One which captures most similar words, and the other which visualizes vectors """
