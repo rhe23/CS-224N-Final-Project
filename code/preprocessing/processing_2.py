@@ -61,6 +61,7 @@ def eval_sim(args):
             return
         if base_word not in vocab:
             print "Given token is not in vocab! Try again."
+            continue
 
         while True:
             num_sim_words = raw_input("Enter number of similar tokens to find: ").strip()
@@ -79,8 +80,8 @@ def eval_sim(args):
         for word in vocab:
             if word == base_word:
                 continue
-            word_embedding = embeddings[vocab[base_word]]
-            cosine_sim = np.dot(base_embeddings, word_embedding) / (np.norm(base_embeddings) * np.norm(word_embedding))
+            word_embedding = embeddings[vocab[word]]
+            cosine_sim = np.dot(base_embeddings, word_embedding) / (np.linalg.norm(base_embeddings) * np.linalg.norm(word_embedding))
             word_to_cosine_sim[word] = cosine_sim
 
         most_similar = sorted(word_to_cosine_sim.iteritems(), key=itemgetter(1), reverse=True)[:num_sim_words]
