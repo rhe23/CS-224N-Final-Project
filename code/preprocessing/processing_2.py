@@ -1,7 +1,5 @@
 #main processing file for vocab/word embeddings
 import sys
-from embeddings_train_2 import GloveTrainer as CPUGloveTrainer
-from embeddings_train_gpu import GloveTrainer as GPUGloveTrainer
 import time
 import argparse
 from operator import itemgetter
@@ -25,8 +23,10 @@ def train_glove_embeddings(args):
 
     start = time.clock()
     if args.use_gpu:
+        from embeddings_train_2 import GloveTrainer as CPUGloveTrainer
         trainer = GPUGloveTrainer(corpus)
     else:
+        from embeddings_train_gpu import GloveTrainer as GPUGloveTrainer
         trainer = CPUGloveTrainer(corpus)
     trainer.make_vocab_and_cooccurrence_mat()
     print_time_elapsed(start, "Vocab and cooccurrence matrix creation")
@@ -42,7 +42,31 @@ def train_glove_embeddings(args):
     trainer.export_weights(args.weights_file)
 
 def eval_plot(args):
-    raise NotImplementedError()
+    words_file = open(args.words_file, 'r')
+    words = [line.strip() for line in words_file]
+    vocab = np.load(args.trained_vocab_file)
+    embeddings = np.load(args.trained_weights_file)
+
+    word_inds = []
+    for word in words:
+        if word in vocab:
+            word_inds.append(vocab[word])
+        else:
+            print "Error: the token '{}' is not in the vocab!"
+            return
+
+    from sklearn.manifold import TSNE
+    import matplotlib.pyplot as plt
+
+    m = TSNE(n_components=2, random_state=0)
+    m.fit_transform(embeddings)
+    m = m[word_inds,:]
+    plt.scatter(m[:, 0], m[:, 1])
+    for label, x, y in zip(self.vocab, m[:, 0], m[:, 1]):
+        plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords='offset points')
+
+    plt.show()
+
 
 def eval_sim(args):
     MIN_SIM_WORDS = 1  # minimum number of similar words to display
@@ -112,9 +136,10 @@ if __name__ == "__main__":
     command_parser.add_argument('-g', '--use_gpu', action='store_true', help="use the GPU to train")
     command_parser.set_defaults(func=train_glove_embeddings)
 
-    command_parser = subparsers.add_parser('eval_plot', help='Plot a subset of the trained embeddings next to each other')
+    command_parser = subparsers.add_parser('eval_plot', help='Plot a given subset of the trained embeddings next to each other')
     command_parser.add_argument('trained_weights_file', help="trained weights file path")
     command_parser.add_argument('trained_vocab_file', help="trained vocab file path")
+    command_parser.add_argument('words_file', help="file path of file of words to plot")
     command_parser.set_defaults(func=eval_plot)
 
     command_parser = subparsers.add_parser('eval_sim', help='Find the most similar tokens to a given token')
