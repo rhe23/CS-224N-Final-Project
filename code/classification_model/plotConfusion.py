@@ -52,7 +52,7 @@ def plot_confusion_matrix(cm, classes,
 
 def main ():
     # Load confusion matrix from data folder
-    address = r'/Users/tylerchase/Documents/Stanford_Classes/CS224n_Natural_Language_Processing_with_Deep_Learning/final project/data//'
+    address = r'/Users/tylerchase/Documents/Stanford_Classes/CS224n_Natural_Language_Processing_with_Deep_Learning/final project/data/class_embed200/'
     conf = np.load(address + 'confusion_mat.npy')
     classes = ['AskReddit', 'LifeProTips', 'nottheonion', 'news', 'science', 
 	       'trees', 'tifu', 'personalfinance', 'mildlyinteresting', 'interestingasfuck']

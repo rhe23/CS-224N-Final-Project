@@ -218,15 +218,18 @@ class Classification:
         return weight, bias
         
 
-def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.185, max_sentence_length=20, layers=1, train_percent = 80, dev_percent = 10, plot_confusion = False, save_flag = False):
+def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.3, max_sentence_length=20, layers=1, train_percent = 80, dev_percent = 10, plot_confusion = False, save_flag = False):
     
     # Load embeddings
     # Data address
-    embeddings = np.load(address + 'large_weights.pkl_iter100')
+    #embeddings = np.load(address + 'large_weights.pkl_iter100') 
+    with open(address + 'new_embeddings_final_filtered.pkl') as input:
+        embeddings = pickle.load(input)
     zeroVecAdd, zeroVecLength = np.shape(embeddings)
-    with open(address + 'embedding_dict') as input:
+    #with open(address + 'embedding_dict') as input:
+        #embedAddress_dict = pickle.load(input)
+    with open(address + 'large_vocab_final_filtered.pkl') as input:
         embedAddress_dict = pickle.load(input)
-
     # Call function to import data
     # replace subreddits with one hot vectors
     # replace list of words with list of embedding matrix addresses
@@ -282,7 +285,7 @@ def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.1
     
     if save_flag == True: 
         # Save trained model to data folder
-        saver.save(sess, address + 'classification_model')
+        saver.save(sess, address + 'classification_model_200')
 
     return(error_train, error_test)
 
