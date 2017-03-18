@@ -346,7 +346,7 @@ def train(args):
                                                   dropout= config_file.drop_out, mask_batch=batch_mask, seq_length = [1] * len(test_batch))
 
                         perplexities = sess.run(m.error, feed_dict=feed)
-
+                        print "Single word-pair perplexity: " + str(perplexities)
                         batch_perplexity += perplexities
 
                     total_perplexity += (batch_perplexity/batch_x_mat.shape[1])
