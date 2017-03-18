@@ -356,7 +356,7 @@ def train(args):
                 if total_perplexity < best_perplexity:
                     best_perplexity = total_perplexity
                     print "New Best Perplexity: " + str(best_perplexity)
-                saver.save(sess, "./code/trainer/models/" + r + "/single_epoch_" + str(epoch + 1) + ".ckpt")
+                saver.save(sess, "./code/trainer/models/" + r.lower() + "/single_epoch_" + str(epoch + 1) + ".ckpt")
 
             with open('./code/trainer/diag/diagnostics_single_backprop.csv', 'a') as diag_out:
                 csv_diag_out = csv.writer(diag_out)
@@ -431,6 +431,91 @@ def generate(args):
             for sentence in all_sentences:
                 print sentence
 
+
+def generator(args):
+
+    choices = ['askreddit', 'lifeprotips', 'nottheonion', 'news', 'science', 'trees', 'tifu', 'personalfinance', 'mildlyinteresting', 'interestingasfuck']
+
+    embeddings = get_embeddings(embed_path='./data/new_embeddings_final_filtered.pkl')
+
+    # vocabs = collections.defaultdict(str)
+
+    with open('./data/large_vocab_final_filtered.pkl', 'rb') as f:
+        vocabs = cPickle.load(f)
+        f.close()
+
+    vocabs = collections.defaultdict(str, vocabs)
+    # with open('./data/large_vocab') as csvfile:
+    #     vocab = csv.reader(csvfile)
+    #     for v in vocab:
+    #         vocabs[v[1]] = v[0]
+
+    vocabs_reversed = {v: k for k, v in vocabs.iteritems()}
+
+    def get_indices(sent):
+        return [vocabs[i] for i in sent]
+
+    def get_words(sent):
+        return [vocabs_reversed[i] for i in sent]
+
+    c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, drop_out=1) #max length is 1 becuase we want 1 word generated at a time
+
+    with tf.Graph().as_default():
+
+        m = RNN_LSTM(embeddings = embeddings, config = c)
+        saver = tf.train.Saver()
+        init = tf.global_variables_initializer()
+
+        with tf.Session() as session:
+            session.run(init)
+
+            print "Hello, please select the sureddit from which you would like to generate a post for: \n 1. AskReddit \n 2. LifeProTips \n 3.nottheonion \n 4. news \n 5. science" \
+                  "\n 6. trees \n 7. tifu \n 8. personalfinance \n 9. mildlyinteresting \n 10. interestingasfuck "
+
+            while True:
+
+                try:
+                    subr = raw_input("subreddit: ")
+                    subr = subr.lower()
+                    if subr not in choices:
+                        print "Please input a correct subreddit."
+                        continue
+                    else:
+
+                        model_path = './code/trainer/models/' + subr +'/'
+                        saver.restore(session, tf.train.latest_checkpoint(model_path))
+
+                        current_word = '<start>'
+                        sentence = [current_word]
+                        #get index of <start> token:
+
+                        while current_word != '<end>':
+                            current_ind =  vocabs[current_word]
+
+                            x = [[current_ind]]
+
+                            feed = m.create_feed_dict(inputs_batch=x, seq_length=[1])
+
+                            preds = session.run(m.last_state, feed_dict=feed)
+
+                            largest_10_inds = preds.argsort()[::-1][:args.numwords]
+                            largest_10_unscaled_p = preds[largest_10_inds]
+                            scaled_p = largest_10_unscaled_p/sum(largest_10_unscaled_p)
+                            current_ind = np.random.choice(largest_10_inds, p = scaled_p)
+
+                            current_word = vocabs_reversed[current_ind]
+                            sentence.append(current_word)
+
+                        print ' '.join(sentence[1:-1])
+
+                        continue
+
+                except EOFError:
+                    continue
+
+
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='LSTM model')
     subparser = parser.add_subparsers()
@@ -448,19 +533,8 @@ if __name__ == '__main__':
     parse.add_argument('-nw', '--numwords', type = int)
     parse.add_argument('-n', '--numsentences', type = int)
 
-    # parse = subparser.add_parser('generator', help='')
-    # parse.set_defaults(function = generator)
-    #
-    #
-    #
-    # command_parser = subparsers.add_parser('shell', help='')
-    # command_parser.add_argument('-m', '--model-path', help="Training data")
-    # command_parser.add_argument('-v', '--vocab', type=argparse.FileType('r'), default="data/vocab.txt", help="Path to vocabulary file")
-    # command_parser.add_argument('-vv', '--vectors', type=argparse.FileType('r'), default="data/wordVectors.txt", help="Path to word vectors file")
-    # command_parser.add_argument('-c', '--cell', choices=["rnn", "gru"], default="rnn", help="Type of RNN cell to use.")
-    # command_parser.set_defaults(func=do_shell)
-    #
-
+    parse = subparser.add_parser('generator', help='')
+    parse.set_defaults(function = generator)
 
     ARGS = parser.parse_args()
     if ARGS.function is not None:
