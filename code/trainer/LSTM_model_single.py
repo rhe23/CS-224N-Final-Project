@@ -389,7 +389,7 @@ def generate(args):
     model = args.model
     model_path = './code/trainer/models/' + model +'/'
 
-    c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36) #max length is 1 becuase we want 1 word generated at a time
+    c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, drop_out=1) #max length is 1 becuase we want 1 word generated at a time
 
     with tf.Graph().as_default():
 
