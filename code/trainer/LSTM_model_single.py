@@ -324,7 +324,7 @@ def train(args):
                 for k, indices in enumerate(get_batch(test_size, 100)):
 
                     total_batches += 1
-                    test_batch = test[indices]
+                    test_batch = dev[indices]
 
                     max_len = max(len(case) for case in test_batch)
                     padded = generate_padded_seq(max_len, config_file.output_size, test_batch)
