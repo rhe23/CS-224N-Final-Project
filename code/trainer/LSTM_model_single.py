@@ -349,12 +349,12 @@ def train(args):
                         print "Single word-pair perplexity: " + str(perplexities)
                         batch_perplexity += perplexities
 
-                    total_perplexity += (batch_perplexity/batch_x_mat.shape[1])
+                    total_perplexity += batch_perplexity
 
-                    print "Epoch " + str(epoch + 1) + " average test perplexity for batch " + str(k + 1) +  ' :' + str(batch_perplexity/batch_x_mat.shape[1])
+                    print "Epoch " + str(epoch + 1) + " Total test perplexity for batch " + str(k + 1) +  ' :' + str(batch_perplexity/batch_x_mat.shape[1])
 
-                if (total_perplexity/total_batches) < best_perplexity:
-                    best_perplexity = (total_perplexity/total_batches)
+                if total_perplexity < best_perplexity:
+                    best_perplexity = total_perplexity
                     print "New Best Perplexity: " + str(best_perplexity)
                 saver.save(sess, "./code/trainer/models/" + r + "/single_epoch_" + str(epoch + 1) + ".ckpt")
 
@@ -401,29 +401,35 @@ def generate(args):
             session.run(init)
             saver.restore(session, tf.train.latest_checkpoint(model_path))
 
-            current_word = '<start>'
-            sentence = [current_word]
-            #get index of <start> token:
+            all_sentences = []
 
-            while current_word != '<end>':
-                current_ind =  vocabs[current_word]
+            for sent in range(args.numsentences):
 
-                x = [[current_ind]]
+                current_word = '<start>'
+                sentence = [current_word]
+                #get index of <start> token:
 
-                feed = m.create_feed_dict(inputs_batch=x, seq_length=[1])
+                while current_word != '<end>':
+                    current_ind =  vocabs[current_word]
 
-                preds = session.run(m.last_state, feed_dict=feed)
+                    x = [[current_ind]]
 
-                largest_10_inds = preds.argsort()[::-1][:args.numwords]
-                largest_10_unscaled_p = preds[largest_10_inds]
-                scaled_p = largest_10_unscaled_p/sum(largest_10_unscaled_p)
-                current_ind = np.random.choice(largest_10_inds, p = scaled_p)
+                    feed = m.create_feed_dict(inputs_batch=x, seq_length=[1])
 
-                current_word = vocabs_reversed[current_ind]
-                sentence.append(current_word)
+                    preds = session.run(m.last_state, feed_dict=feed)
 
-            print sentence
+                    largest_10_inds = preds.argsort()[::-1][:args.numwords]
+                    largest_10_unscaled_p = preds[largest_10_inds]
+                    scaled_p = largest_10_unscaled_p/sum(largest_10_unscaled_p)
+                    current_ind = np.random.choice(largest_10_inds, p = scaled_p)
 
+                    current_word = vocabs_reversed[current_ind]
+                    sentence.append(current_word)
+
+                all_sentences.append(' '.join(sentence[1:-1]))
+
+            for sentence in all_sentences:
+                print sentence
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='LSTM model')
@@ -432,7 +438,7 @@ if __name__ == '__main__':
     parse = subparser.add_parser('train')
     parse.set_defaults(function = train)
     parse.add_argument('-r', '--subreddit', type =str, choices= ['AskReddit', 'LifeProTips', 'nottheonion', 'news', 'science', 'trees', 'tifu', 'personalfinance', 'mildlyinteresting', 'interestingasfuck'])
-    parse.add_argument('-lr', '--learningrate', type = float, default=0.05)
+    parse.add_argument('-lr', '--learningrate', type = float, default=0.0004)
     parse.add_argument('-hs', '--hiddensize', type =int, default = 100)
     parse.add_argument('-do', '--dropout', type = float, default = 0.5)
 
@@ -440,6 +446,22 @@ if __name__ == '__main__':
     parse.set_defaults(function = generate)
     parse.add_argument('-g', '--model', type = str,choices= ['AskReddit', 'LifeProTips', 'nottheonion', 'news', 'science', 'trees', 'tifu', 'personalfinance', 'mildlyinteresting', 'interestingasfuck'])
     parse.add_argument('-nw', '--numwords', type = int)
+    parse.add_argument('-n', '--numsentences', type = int)
+
+    # parse = subparser.add_parser('generator', help='')
+    # parse.set_defaults(function = generator)
+    #
+    #
+    #
+    # command_parser = subparsers.add_parser('shell', help='')
+    # command_parser.add_argument('-m', '--model-path', help="Training data")
+    # command_parser.add_argument('-v', '--vocab', type=argparse.FileType('r'), default="data/vocab.txt", help="Path to vocabulary file")
+    # command_parser.add_argument('-vv', '--vectors', type=argparse.FileType('r'), default="data/wordVectors.txt", help="Path to word vectors file")
+    # command_parser.add_argument('-c', '--cell', choices=["rnn", "gru"], default="rnn", help="Type of RNN cell to use.")
+    # command_parser.set_defaults(func=do_shell)
+    #
+
+
     ARGS = parser.parse_args()
     if ARGS.function is not None:
 
