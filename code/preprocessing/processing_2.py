@@ -5,6 +5,7 @@ from embeddings_train_gpu import GloveTrainer as GPUGloveTrainer
 import time
 import argparse
 from operator import itemgetter
+import numpy as np
 
 def make_corpus(path):
     corpus = []
@@ -55,14 +56,14 @@ def eval_sim(args):
     num_sim_words = 0
 
     while True:
-        base_word = input("Enter token to find similar tokens to (-1 to exit): ").strip()
+        base_word = raw_input("Enter token to find similar tokens to (-1 to exit): ").strip()
         if base_word == "-1":
             return
         if base_word not in vocab:
             print "Given token is not in vocab! Try again."
 
         while True:
-            num_sim_words = input("Enter number of similar tokens to find: ").strip()
+            num_sim_words = raw_input("Enter number of similar tokens to find: ").strip()
             try:
                 num_sim_words = int(num_sim_words)
                 if num_sim_words < MIN_SIM_WORDS or num_sim_words > MAX_SIM_WORDS:
@@ -78,14 +79,15 @@ def eval_sim(args):
         for word in vocab:
             if word == base_word:
                 continue
-            cosine_sim = np.dot(base_embeddings, embeddings[vocab[base_word]])
+            word_embedding = embeddings[vocab[base_word]]
+            cosine_sim = np.dot(base_embeddings, word_embedding) / (np.norm(base_embeddings) * np.norm(word_embedding))
             word_to_cosine_sim[word] = cosine_sim
 
         most_similar = sorted(word_to_cosine_sim.iteritems(), key=itemgetter(1), reverse=True)[:num_sim_words]
 
         print "Tokens most similar to {}:".format(base_word)
-        for word in most_similar:
-            print "Token: {}, cosine similarity: {}".format(word, word_to_cosine_sim[word])
+        for item in most_similar:
+            print "Token: {}, cosine similarity: {}".format(item[0], item[1])
 
 
 if __name__ == "__main__":
