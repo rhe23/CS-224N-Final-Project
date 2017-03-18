@@ -1,6 +1,7 @@
 #main processing file for vocab/word embeddings
 import sys
-from embeddings_train_2 import GloveTrainer
+from embeddings_train_2 import GloveTrainer as CPUGloveTrainer
+from embeddings_train_gpu import GloveTrainer as GPUGloveTrainer
 import time
 import argparse
 
@@ -21,6 +22,7 @@ if __name__ == "__main__":
     parser.add_argument('weights_file', help="weights output file path")
     parser.add_argument('vocab_file', help="vocab output file path")
     parser.add_argument('-s', '--intermediate_path', help="optional file path for saving intermediate results")
+    parser.add_argument('-p', '--saved_weights_path', help="file path for using saved weights")
     parser.add_argument('-i', '--iterations', default=100, type=int, help="num iterations to run for")
     parser.add_argument('-b', '--batch_size', default=1, type=int, help="size of minibatches (-1 for entire batch)")
     parser.add_argument('-m', '--opt_method', default="adagrad", help="optimization method: either vanilla \
@@ -29,6 +31,7 @@ if __name__ == "__main__":
     parser.add_argument('-x', '--x_max', default=100, type=float, help="x_max for weighting function")
     parser.add_argument('-v', '--v_dim', default=200, type=int, help="number of dimensions for embeddings")
     parser.add_argument('-l', '--learning_rate', default=0.05, type=float, help="initial learning rate")
+    parser.add_argument('-g', '--use_gpu', action='store_true', help="use the GPU to train")
     args = parser.parse_args()
 
     start = time.clock()
@@ -36,7 +39,10 @@ if __name__ == "__main__":
     print_time_elapsed(start, "Corpus creation")
 
     start = time.clock()
-    trainer = GloveTrainer(corpus)
+    if args.use_gpu:
+        trainer = GPUGloveTrainer(corpus)
+    else:
+        trainer = CPUGloveTrainer(corpus)
     trainer.make_vocab_and_cooccurrence_mat()
     print_time_elapsed(start, "Vocab and cooccurrence matrix creation")
 
@@ -45,7 +51,7 @@ if __name__ == "__main__":
     start = time.clock()
     trainer.train(iters=args.iterations, v_dim=args.v_dim, alpha=args.alpha, x_max=args.x_max, \
         batch_size=args.batch_size, learning_rate=args.learning_rate, \
-        save_intermediate_path=args.intermediate_path, opt_method=args.opt_method)
+                  save_intermediate_path=args.intermediate_path, opt_method=args.opt_method, saved_weights_path=args.saved_weights_path)
     print_time_elapsed(start, "Training")
 
     trainer.export_weights(args.weights_file)
