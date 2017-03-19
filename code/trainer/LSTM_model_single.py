@@ -1,6 +1,5 @@
 import numpy as np
-import argparse, os, collections, csv, sys
-import cPickle
+import argparse, os, collections, csv, sys, cPickle
 import tensorflow as tf
 from processing_utils import get_embeddings, get_data, get_batch, get_dev_test_sets, get_masks
 #general structure of tf workflow adapted from HW
@@ -469,8 +468,8 @@ def generator(args):
         with tf.Session() as session:
             session.run(init)
 
-            print "Hello, please select the sureddit from which you would like to generate a post for: \n 1. AskReddit \n 2. LifeProTips \n 3.nottheonion \n 4. news \n 5. science" \
-                  "\n 6. trees \n 7. tifu \n 8. personalfinance \n 9. mildlyinteresting \n 10. interestingasfuck "
+            print "Hello, please select the sureddit from which you would like to generate a post for: \n 1. AskReddit \n 2. LifeProTips \n 3. nottheonion \n 4. news \n 5. science" \
+                  "\n 6. trees \n 7. tifu \n 8. personalfinance \n 9. mildlyinteresting \n 10.interestingasfuck "
 
             while True:
 
@@ -498,10 +497,10 @@ def generator(args):
 
                             preds = session.run(m.last_state, feed_dict=feed)
 
-                            largest_10_inds = preds.argsort()[::-1][:args.numwords]
-                            largest_10_unscaled_p = preds[largest_10_inds]
-                            scaled_p = largest_10_unscaled_p/sum(largest_10_unscaled_p)
-                            current_ind = np.random.choice(largest_10_inds, p = scaled_p)
+                            largest_inds = preds.argsort()[::-1][:100] #top 100
+                            largest_unscaled_p = preds[largest_inds]
+                            scaled_p = largest_unscaled_p/sum(largest_unscaled_p)
+                            current_ind = np.random.choice(largest_inds, p = scaled_p)
 
                             current_word = vocabs_reversed[current_ind]
                             sentence.append(current_word)
