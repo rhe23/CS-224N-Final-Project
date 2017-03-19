@@ -232,9 +232,6 @@ class RNN_LSTM:
             y = batch_y_mat[:,i]
             m = masks[:,i]
 
-            print x
-            print y
-
             feed = self.create_feed_dict(inputs_batch=x, labels_batch= y, dropout= self.config.drop_out, mask_batch=m)
 
             _, loss = sess.run([self.train_op, self.loss], feed_dict=feed)
