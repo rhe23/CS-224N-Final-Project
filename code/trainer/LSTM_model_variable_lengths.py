@@ -203,11 +203,11 @@ class RNN_LSTM:
 
         feed = self.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= self.config.drop_out, mask_batch=masks)
 
-        # _, loss = sess.run([self.train_op, self.loss], feed_dict=feed)
+        _, loss = sess.run([self.train_op, self.loss], feed_dict=feed)
         # loss = sess.run(self.error, feed_dict=feed)
-        pred = sess.run(self.pred, feed_dict=feed)
-        return pred
-        # return _, loss
+        # pred = sess.run(self.pred, feed_dict=feed)
+        # return pred
+        return _, loss
 
     def train_on_batch_single(self, sess, batch):
         seq_length = self.config.sequence_length
@@ -232,6 +232,8 @@ class RNN_LSTM:
             y = batch_y_mat[:,i]
             m = masks[:,i]
 
+            print x
+            print y
 
             feed = self.create_feed_dict(inputs_batch=x, labels_batch= y, dropout= self.config.drop_out, mask_batch=m)
 
@@ -311,7 +313,7 @@ def train(args):
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    config_file = Config(drop_out=args.dropout, max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 2,
+    config_file = Config(drop_out=args.dropout, max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 128,
                          learning_rate = args.learningrate, hidden_unit_size=args.hiddensize, num_layers=args.numlayers, sequence_length=args.seqlength)
 
     idx = np.arange(len(sample))
@@ -532,7 +534,6 @@ def generator(args):
 
                 except EOFError:
                     continue
-
 
 
 if __name__ == '__main__':
