@@ -308,12 +308,13 @@ def train(args):
 
                 # # #evaluate training perplexity
                 test_size = len(dev)
+
                 total_perplexity = 0
                 total_batches = 0
                 for k, indices in enumerate(get_batch(test_size, 100)):
 
                     total_batches += 1
-                    test_batch = test[indices]
+                    test_batch = dev[indices]
                     masks = get_masks(test_batch, config_file.max_length)
 
                     seq_len = [len(i) for i in test_batch]
