@@ -378,33 +378,34 @@ def generate(args):
 
             all_sentences = []
 
-            for sent in range(args.numsentences):
+            # for sent in range(args.numsentences):
 
-                current_word = '<start>'
-                sentence = [current_word]
-                #get index of <start> token:
+            current_word = '<start>'
+            sentence = [current_word]
+            #get index of <start> token:
 
-                while current_word != '<end>':
-                    current_ind =  vocabs[current_word]
+            while current_word != '<end>':
+                current_ind =  vocabs[current_word]
 
-                    x = [[current_ind]]
+                x = [[current_ind]]
 
-                    feed = m.create_feed_dict(inputs_batch=x, seq_length=[1])
+                feed = m.create_feed_dict(inputs_batch=x, seq_length=[1])
 
-                    preds = session.run(m.last_state, feed_dict=feed)
+                preds = session.run(m.last_state, feed_dict=feed)
 
-                    largest_10_inds = preds.argsort()[::-1][:args.numwords]
-                    largest_10_unscaled_p = preds[largest_10_inds]
-                    scaled_p = largest_10_unscaled_p/sum(largest_10_unscaled_p)
-                    current_ind = np.random.choice(largest_10_inds, p = scaled_p)
+                largest_10_inds = preds.argsort()[::-1][:args.numwords]
+                largest_10_unscaled_p = preds[largest_10_inds]
+                scaled_p = largest_10_unscaled_p/sum(largest_10_unscaled_p)
+                current_ind = np.random.choice(largest_10_inds, p = scaled_p)
 
-                    current_word = vocabs_reversed[current_ind]
-                    sentence.append(current_word)
+                current_word = vocabs_reversed[current_ind]
+                sentence.append(current_word)
 
-                all_sentences.append(' '.join(sentence[1:-1]))
-
-            for sentence in all_sentences:
-                print sentence
+                # all_sentences.append(' '.join(sentence[1:-1]))
+            print sentence
+            # for sentence in all_sentences:
+            #     print sentence
+            #     print "\n"
 
 
 if __name__ == '__main__':
@@ -422,7 +423,7 @@ if __name__ == '__main__':
     parse.set_defaults(function = generate)
     parse.add_argument('-g', '--model', type = str,choices= ['AskReddit', 'LifeProTips', 'nottheonion', 'news', 'science', 'trees', 'tifu', 'personalfinance', 'mildlyinteresting', 'interestingasfuck'])
     parse.add_argument('-nw', '--numwords', type = int)
-    parse.add_argument('-n', '--numsentences', type = int)
+    # parse.add_argument('-n', '--numsentences', type = int)
     ARGS = parser.parse_args()
     if ARGS.function is not None:
 
