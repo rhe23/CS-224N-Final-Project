@@ -115,7 +115,7 @@ class RNN_LSTM:
         # preds = []
         W = tf.get_variable("W2", shape = [self.config.hidden_unit_size, self.config.output_size], initializer=tf.contrib.layers.xavier_initializer() )
         b = tf.get_variable("b2", shape = [self.config.output_size], initializer=tf.constant_initializer(0) )
-        outputs = tf.matmul(outputs, W) + b
+        outputs = tf.matmul(outputs[:,0,:], W) + b
         # # #
         # for time_step in range(self.config.max_length):
         #     out = tf.gather(outputs, ( time_step ) )
