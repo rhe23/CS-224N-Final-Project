@@ -284,7 +284,7 @@ def train(args):
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    config_file = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, learning_rate = args.learningrate, hidden_unit_size=args.hiddensize)
+    config_file = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, drop_out=args.dropout, learning_rate = args.learningrate, hidden_unit_size=args.hiddensize)
 
     idx = np.arange(len(sample))
 
@@ -415,6 +415,7 @@ if __name__ == '__main__':
     parse.add_argument('-r', '--subreddit', type =str, choices= ['AskReddit', 'LifeProTips', 'nottheonion', 'news', 'science', 'trees', 'tifu', 'personalfinance', 'mildlyinteresting', 'interestingasfuck'])
     parse.add_argument('-lr', '--learningrate', type = float)
     parse.add_argument('-hs', '--hiddensize', type =int)
+    parse.add_argument('-do', '--dropout', type = float, default = 1)
 
     parse = subparser.add_parser('generate') #generate phrases
     parse.set_defaults(function = generate)
