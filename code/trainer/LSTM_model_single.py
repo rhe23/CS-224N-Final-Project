@@ -99,7 +99,7 @@ class RNN_LSTM:
 
         self.cell = tf.nn.rnn_cell.MultiRNNCell([self.cell] * self.config.numlayers, state_is_tuple=True)
 
-        self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
+        # self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
 
     def training(self): #main training function for the model
         #sets up the construction of the graphs such that when session is called these operations will run
@@ -113,8 +113,9 @@ class RNN_LSTM:
         # # # # Gather last output slice
         #
         # preds = []
-        # W = tf.get_variable("W2", shape = [self.config.hidden_unit_size, self.config.output_size], initializer=tf.contrib.layers.xavier_initializer() )
-        # b = tf.get_variable("b2", shape = [self.config.output_size], initializer=tf.constant_initializer(0) )
+        W = tf.get_variable("W2", shape = [self.config.hidden_unit_size, self.config.output_size], initializer=tf.contrib.layers.xavier_initializer() )
+        b = tf.get_variable("b2", shape = [self.config.output_size], initializer=tf.constant_initializer(0) )
+        outputs = tf.matmul(outputs, W) + b
         # # #
         # for time_step in range(self.config.max_length):
         #     out = tf.gather(outputs, ( time_step ) )
