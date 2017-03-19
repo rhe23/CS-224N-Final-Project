@@ -355,7 +355,7 @@ def train(args):
 
                     batch_perplexity = 0
 
-                    sequences = get_sequence(max_len, sequence_length=config_file.seq_length)
+                    sequences = get_sequence(max_len, sequence_length=config_file.sequence_length)
 
                     for bat in sequences:
                         x = batch_x_mat[:,bat]
