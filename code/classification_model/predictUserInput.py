@@ -22,16 +22,18 @@ class Model:
     # Load a priviously optimized model
     def loadModel(self):
 
-        self.address = r'/Users/tylerchase/Documents/Stanford_Classes/CS224n_Natural_Language_Processing_with_Deep_Learning/final project/data//'
+        self.address = r'/Users/tylerchase/Documents/Stanford_Classes/CS224n_Natural_Language_Processing_with_Deep_Learning/final project/data/class_embed200//'
         self.max_length = 20
 
         # Load embeddings
         # Data address
-        embeddings = np.load(self.address + 'large_weights.pkl_iter100')
+        #embeddings = np.load(self.address + 'large_weights.pkl_iter100')
+        with open(self.address + 'new_embeddings_final_filtered.pkl') as input:
+            embeddings = pickle.load(input)
         zeroVecAdd, zeroVecLength = np.shape(embeddings)
    
     
-        config = LSTM_classifier.Config(1, 10, 25, self.max_length, 1)
+        config = LSTM_classifier.Config(1, 10, 200, self.max_length, 1)
         self.data = tf.placeholder(tf.int32, [None, self.max_length])
         self.target = tf.placeholder(tf.float32, [None, 10])
         self.dropout = tf.placeholder(tf.float32)   
@@ -42,15 +44,18 @@ class Model:
         # predicted likelihoods
         saver = tf.train.Saver()
         self.sess = tf.Session()
-        saver.restore(self.sess, '../../../data/classification_model')   
+        saver.restore(self.sess, '../../../data/class_embed200/classification_model_200')   
     
     # Classify a user defined sentence   
     def classify(self, titles):    
         if type(titles) == str:
             titles = [titles]
         
-        with open(self.address + 'embedding_dict') as input:
-            embedAddress_dict = pickle.load(input) 
+        #with open(self.address + 'embedding_dict') as input:
+        #    embedAddress_dict = pickle.load(input) 
+            
+        with open(self.address + 'large_vocab_final_filtered.pkl') as input:
+            embedAddress_dict = pickle.load(input)
             
         classes = ['AskReddit', 'LifeProTips', 'nottheonion', 'news', 'science', 'trees', 'tifu', 
                        'personalfinance', 'mildlyinteresting', 'interestingasfuck']
