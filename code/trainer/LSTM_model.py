@@ -12,12 +12,12 @@ max_length = 0
 
 class Config:
 
-    def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 100, batch_size = 256, n_epochs = 10, num_layers =1, learning_rate=0.05):
+    def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 100, batch_size = 256, n_epochs = 10, num_layers =1, learning_rate=0.05, drop_out = 0.5):
         self.dev_set_size =0.1
         self.test_set_size = 0
         self.classify= False #determines if we're running a classification
         self.n_features = n_features #number of features for each word in the data
-        self.drop_out = 0.5
+        self.drop_out = drop_out
         self.n_classes = n_classes
         self.max_length = max_length #longest length of all our sentences
         self.hidden_unit_size = hidden_unit_size
@@ -359,7 +359,7 @@ def train(args):
                     predicted_words = [get_words(j) for j in predicted_indices]
                 predicted_pairs = zip(predicted_words, actual_sentences)
 
-                with open('./code/trainer/results/' + r + '/epoch_' + str(epoch + 1) + '_predictions.csv', 'wb') as out:
+                with open('./code/trainer/results/' + r + '/test_epoch_' + str(epoch + 1) + '_predictions.csv', 'wb') as out:
                     csv_out=csv.writer(out)
                     csv_out.writerow(['Predicted','Actual'])
                     for row in predicted_pairs:
@@ -396,7 +396,7 @@ def generate(args):
     model = args.model
     model_path = './code/trainer/models/' + model +'/'
 
-    c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36) #max length is 1 becuase we want 1 word generated at a time
+    c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, drop_out=1) #max length is 1 becuase we want 1 word generated at a time
 
     with tf.Graph().as_default():
 
