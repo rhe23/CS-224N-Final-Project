@@ -96,10 +96,9 @@ class RNN_LSTM:
                                         initializer=tf.contrib.layers.xavier_initializer(), activation=tf.sigmoid, state_is_tuple=True)
         self.cell = tf.nn.rnn_cell.DropoutWrapper(cell = self.cell, output_keep_prob=self.dropout_placeholder)
         # self.cell = tf.contrib.rnn.MultiRNNCell([self.cell]*self.config.num_layers, state_is_tuple=False)
+        self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
 
-        self.cell = tf.nn.rnn_cell.MultiRNNCell([self.cell] * self.config.numlayers, state_is_tuple=True)
-
-        # self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
+        # self.cell = tf.nn.rnn_cell.MultiRNNCell([self.cell] * self.config.numlayers)
 
     def training(self): #main training function for the model
         #sets up the construction of the graphs such that when session is called these operations will run
@@ -113,9 +112,8 @@ class RNN_LSTM:
         # # # # Gather last output slice
         #
         # preds = []
-        W = tf.get_variable("W2", shape = [self.config.hidden_unit_size, self.config.output_size], initializer=tf.contrib.layers.xavier_initializer() )
-        b = tf.get_variable("b2", shape = [self.config.output_size], initializer=tf.constant_initializer(0) )
-        outputs = tf.matmul(outputs[:,0,:], W) + b
+        # W = tf.get_variable("W2", shape = [self.config.hidden_unit_size, self.config.output_size], initializer=tf.contrib.layers.xavier_initializer() )
+        # b = tf.get_variable("b2", shape = [self.config.output_size], initializer=tf.constant_initializer(0) )
         # # #
         # for time_step in range(self.config.max_length):
         #     out = tf.gather(outputs, ( time_step ) )
@@ -529,14 +527,14 @@ if __name__ == '__main__':
     parse.add_argument('-lr', '--learningrate', type = float, default=0.0004)
     parse.add_argument('-hs', '--hiddensize', type =int, default = 100)
     parse.add_argument('-do', '--dropout', type = float, default = 0.5)
-    parse.add_argument('-l', '--numlayers', type=int)
+    parse.add_argument('-l', '--numlayers', type=int, default = 2)
 
     parse = subparser.add_parser('generate') #generate phrases
     parse.set_defaults(function = generate)
     parse.add_argument('-g', '--model', type = str,choices= ['AskReddit', 'LifeProTips', 'nottheonion', 'news', 'science', 'trees', 'tifu', 'personalfinance', 'mildlyinteresting', 'interestingasfuck'])
     parse.add_argument('-nw', '--numwords', type = int)
     parse.add_argument('-n', '--numsentences', type = int)
-    parse.add_argument('-l', '--numlayers', type=int)
+    parse.add_argument('-l', '--numlayers', type=int, default = 2)
 
     parse = subparser.add_parser('generator', help='')
     parse.set_defaults(function = generator)
