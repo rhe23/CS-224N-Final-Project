@@ -24,7 +24,7 @@ class Config:
         self.embed_size =embed_size
         self.output_size = output_size #the size of the vocab
         self.learning_rate = learning_rate
-        self.num_layers = num_layers
+        self.numlayers = num_layers
 
 def generate_padded_seq(max_length, vocab_length, sentences):
     return np.array([sentence + [vocab_length-1]*(max_length-len(sentence)) for sentence in sentences], dtype=np.int32) #vocab_length-1 because that's the index for the NULL vector in our embedding matrix
@@ -97,6 +97,8 @@ class RNN_LSTM:
         self.cell = tf.nn.rnn_cell.DropoutWrapper(cell = self.cell, output_keep_prob=self.dropout_placeholder)
         # self.cell = tf.contrib.rnn.MultiRNNCell([self.cell]*self.config.num_layers, state_is_tuple=False)
         self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
+
+        self.cell = tf.nn.rnn_cell.MultiRNNCell([self.cell] * self.config.numlayers)
 
     def training(self): #main training function for the model
         #sets up the construction of the graphs such that when session is called these operations will run
@@ -293,7 +295,7 @@ def train(args):
 
     #seq_length, max_length, embed_size, output_size
     config_file = Config(drop_out=args.dropout, max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 128,
-                         learning_rate = args.learningrate, hidden_unit_size=args.hiddensize)
+                         learning_rate = args.learningrate, hidden_unit_size=args.hiddensize, num_layers=args.numlayers)
 
     idx = np.arange(len(sample))
 
@@ -388,7 +390,7 @@ def generate(args):
     model = args.model
     model_path = './code/trainer/models/' + model +'/'
 
-    c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, drop_out=1) #max length is 1 becuase we want 1 word generated at a time
+    c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, num_layers=args.numlayers, drop_out=1) #max length is 1 becuase we want 1 word generated at a time
 
     with tf.Graph().as_default():
 
@@ -525,12 +527,14 @@ if __name__ == '__main__':
     parse.add_argument('-lr', '--learningrate', type = float, default=0.0004)
     parse.add_argument('-hs', '--hiddensize', type =int, default = 100)
     parse.add_argument('-do', '--dropout', type = float, default = 0.5)
+    parse.add_argument('-l', '--numlayers', type=int)
 
     parse = subparser.add_parser('generate') #generate phrases
     parse.set_defaults(function = generate)
     parse.add_argument('-g', '--model', type = str,choices= ['AskReddit', 'LifeProTips', 'nottheonion', 'news', 'science', 'trees', 'tifu', 'personalfinance', 'mildlyinteresting', 'interestingasfuck'])
     parse.add_argument('-nw', '--numwords', type = int)
     parse.add_argument('-n', '--numsentences', type = int)
+    parse.add_argument('-l', '--numlayers', type=int)
 
     parse = subparser.add_parser('generator', help='')
     parse.set_defaults(function = generator)
