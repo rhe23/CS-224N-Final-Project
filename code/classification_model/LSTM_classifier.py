@@ -218,7 +218,7 @@ class Classification:
         return weight, bias
         
 
-def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.3, max_sentence_length=20, layers=1, train_percent = 80, dev_percent = 10, plot_confusion = False, save_flag = False):
+def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.3, max_sentence_length=20, layers=1, num_hidden = 200, learning_rate = 0.003, train_percent = 80, dev_percent = 10, plot_confusion = False, save_flag = False):
     
     # Load embeddings
     # Data address
@@ -244,7 +244,7 @@ def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.3
     data = tf.placeholder(tf.int32, [None, max_sentence_length])
     target = tf.placeholder(tf.float32, [None, class_size])
     dropout = tf.placeholder(tf.float32)   
-    model = Classification(config, embeddings, data, target, dropout)
+    model = Classification(config, embeddings, data, target, dropout, num_hidden = num_hidden, learning_rate = learning_rate)
     if save_flag == True:    
         saver = tf.train.Saver()
     sess = tf.Session()
