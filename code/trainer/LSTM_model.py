@@ -330,40 +330,7 @@ def train(args):
                 if (total_perplexity/total_batches) < best_perplexity:
                     best_perplexity = (total_perplexity/total_batches)
                     print "New Best Perplexity: " + str(best_perplexity)
-                saver.save(sess, "./code/trainer/models/" + r + "/epoch_" + str(epoch + 1) + ".ckpt")
-
-                # #generate outputted sentence using the best weights:
-                predicted_indices = []
-                actual_sentences = []
-                for k, indices in enumerate(get_batch(test_size, 50)):
-
-                    test_batch = test[indices]
-                    # actual_sentences += test_batch
-                    masks = get_masks(test_batch, config_file.max_length)
-
-                    for case in test_batch:
-                        actual_sentences.append(get_words(case))
-
-                    seq_len = [len(i) for i in test_batch]
-                    batch_x = generate_padded_seq(config_file.max_length, config_file.output_size, test_batch)
-                    batch_y = [i[1:] for i in batch_x]
-                    feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= config_file.drop_out, mask_batch=masks, seq_length = seq_len)
-
-                    predicted_inds_unmasked = sess.run(m.probs, feed_dict= feed)
-
-                    seq_inds = np.arange(len(seq_len))
-
-                    for row in seq_inds:
-                        predicted_indices.append(predicted_inds_unmasked[row][0:seq_len[row]])
-
-                    predicted_words = [get_words(j) for j in predicted_indices]
-                predicted_pairs = zip(predicted_words, actual_sentences)
-
-                with open('./code/trainer/results/' + r + '/test_epoch_' + str(epoch + 1) + '_predictions.csv', 'wb') as out:
-                    csv_out=csv.writer(out)
-                    csv_out.writerow(['Predicted','Actual'])
-                    for row in predicted_pairs:
-                        csv_out.writerow(row)
+            saver.save(sess, "./code/trainer/models/" + r + "/epoch_" + str(epoch + 1) + ".ckpt")
 
             with open('./code/trainer/diag/diagnostics.csv', 'a') as diag_out:
                 csv_diag_out = csv.writer(diag_out)
