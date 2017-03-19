@@ -96,9 +96,10 @@ class RNN_LSTM:
                                         initializer=tf.contrib.layers.xavier_initializer(), activation=tf.sigmoid, state_is_tuple=True)
         self.cell = tf.nn.rnn_cell.DropoutWrapper(cell = self.cell, output_keep_prob=self.dropout_placeholder)
         # self.cell = tf.contrib.rnn.MultiRNNCell([self.cell]*self.config.num_layers, state_is_tuple=False)
-        self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
 
-        self.cell = tf.nn.rnn_cell.MultiRNNCell([self.cell] * self.config.numlayers)
+        self.cell = tf.nn.rnn_cell.MultiRNNCell([self.cell] * self.config.numlayers, state_is_tuple=True)
+
+        self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
 
     def training(self): #main training function for the model
         #sets up the construction of the graphs such that when session is called these operations will run
