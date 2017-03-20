@@ -406,7 +406,7 @@ def generate(args):
     def get_words(sent):
         return [vocabs_reversed[i] for i in sent]
 
-    model = args.model
+    model = args.model.lower()
     model_path = './code/trainer/models/' + model +'/'
 
     c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, num_layers=args.numlayers, drop_out=1, sequence_length=args.seqlength,
