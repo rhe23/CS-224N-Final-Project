@@ -261,8 +261,8 @@ class RNN_LSTM:
         for i, indices in enumerate(get_batch(training_size, self.config.batch_size)):
 
             t = self.train_on_batch_single_new(sess, data[indices], numpad)
-            print t
-            # print "Batch " + str(i+1) + " Loss: " + str(t)
+
+            print "Batch " + str(i+1) + " Loss: " + str(t)
 
 
     def test_session(self, session, inds): #for debugging purposes only
@@ -318,7 +318,7 @@ def train(args):
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    config_file = Config(drop_out=args.dropout, max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 2,
+    config_file = Config(drop_out=args.dropout, max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 128,
                          learning_rate = args.learningrate, hidden_unit_size=args.hiddensize, num_layers=args.numlayers, numpad = args.numpad)
 
     idx = np.arange(len(sample))
