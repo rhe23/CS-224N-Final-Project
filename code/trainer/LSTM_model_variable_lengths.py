@@ -408,7 +408,8 @@ def generate(args):
     model = args.model
     model_path = './code/trainer/models/' + model +'/'
 
-    c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, num_layers=args.numlayers, drop_out=1, sequence_length=args.seqlength) #max length is 1 becuase we want 1 word generated at a time
+    c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, num_layers=args.numlayers, drop_out=1, sequence_length=args.seqlength,
+               hidden_unit_size=args.hiddensize) #max length is 1 becuase we want 1 word generated at a time
 
     with tf.Graph().as_default():
 
@@ -553,7 +554,7 @@ if __name__ == '__main__':
     parse.add_argument('-n', '--numsentences', type = int)
     parse.add_argument('-l', '--numlayers', type=int, default = 2)
     parse.add_argument('-sq', '--seqlength', type = int, default = 10)
-
+    parse.add_argument('-hs', '--hiddensize', type = int, default = 100)
 
     parse = subparser.add_parser('generator', help='')
     parse.set_defaults(function = generator)
