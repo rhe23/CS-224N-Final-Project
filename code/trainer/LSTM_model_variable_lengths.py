@@ -376,7 +376,7 @@ def train(args):
                 if total_perplexity < best_perplexity:
                     best_perplexity = total_perplexity
                     print "New Best Perplexity: " + str(best_perplexity)
-                saver.save(sess, "./code/trainer/models/" + r.lower() + "/single_epoch_" + str(epoch + 1) + ".ckpt")
+                    saver.save(sess, "./code/trainer/models/" + r.lower() + "/single_epoch_" + str(epoch + 1) + ".ckpt")
 
             with open('./code/trainer/diag/diagnostics_new_final.csv', 'a') as diag_out:
                 csv_diag_out = csv.writer(diag_out)
