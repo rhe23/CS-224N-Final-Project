@@ -354,8 +354,9 @@ def train(args):
                     batch_x_mat = np.matrix(batch_x)
                     batch_y_mat = np.matrix(batch_y)
 
-                    batch_perplexity = 0
+                    # batch_perplexity = 0
 
+                    batch_loss = 0.
                     sequences = get_sequence(max_len, sequence_length=config_file.sequence_length)
 
                     for bat in sequences:
@@ -365,13 +366,15 @@ def train(args):
                         feed = m.create_feed_dict(inputs_batch=x, labels_batch= y,
                                                   dropout= config_file.drop_out, mask_batch=batch_mask, seq_length = [1] * len(test_batch))
 
-                        perplexities = sess.run(m.error, feed_dict=feed)
-                        # print "Single word-pair perplexity: " + str(perplexities)
-                        batch_perplexity += perplexities
 
+                        loss = sess.run(m.loss, feed_dict=feed)
+                        # perplexities = sess.run(m.error, feed_dict=feed)
+                        # print "Single word-pair perplexity: " + str(perplexities)
+                        batch_loss += loss
+                    batch_perplexity = batch_loss**2
                     total_perplexity += batch_perplexity
 
-                    print "Epoch " + str(epoch + 1) + " Total test perplexity for batch " + str(k + 1) +  ' :' + str(batch_perplexity/batch_x_mat.shape[1])
+                    print "Epoch " + str(epoch + 1) + " Total test perplexity for batch " + str(k + 1) +  ' :' + str(batch_perplexity)
 
                 if total_perplexity < best_perplexity:
                     best_perplexity = total_perplexity
