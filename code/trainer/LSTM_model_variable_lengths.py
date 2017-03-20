@@ -378,9 +378,9 @@ def train(args):
                     print "New Best Perplexity: " + str(best_perplexity)
                 saver.save(sess, "./code/trainer/models/" + r.lower() + "/single_epoch_" + str(epoch + 1) + ".ckpt")
 
-            with open('./code/trainer/diag/diagnostics_new_wtf.csv', 'a') as diag_out:
+            with open('./code/trainer/diag/diagnostics_new_final.csv', 'a') as diag_out:
                 csv_diag_out = csv.writer(diag_out)
-                csv_diag_out.writerow([args.subreddit, str(best_perplexity), str(config_file.drop_out), str(config_file.hidden_unit_size), str(config_file.learning_rate), str(config_file.embed_size), str(config_file.sequence_length)])
+                csv_diag_out.writerow([args.subreddit, str(config_file.peephole), str(best_perplexity), str(config_file.drop_out), str(config_file.hidden_unit_size), str(config_file.learning_rate), str(config_file.embed_size), str(config_file.sequence_length)])
 
 def generate(args):
 
@@ -459,7 +459,7 @@ def generate(args):
             with open('./code/trainer/diag/sentences.csv', 'a') as sentence_csv:
                 csvwriter = csv.writer(sentence_csv)
                 for sentence in all_sentences:
-                    csvwriter.writerow([args.model, sentence, args.seqlength, args.hiddensize, args.peephole])
+                    csvwriter.writerow([args.model, sentence, args.seqlength, args.hiddensize, args.peephole, args.dropout])
 
 
 def generator(args):
@@ -515,28 +515,34 @@ def generator(args):
                         model_path = './code/trainer/models/' + subr +'/'
                         saver.restore(session, tf.train.latest_checkpoint(model_path))
 
-                        current_word = '<start>'
-                        sentence = [current_word]
-                        #get index of <start> token:
+                        all_sentences = []
 
-                        while current_word != '<end>':
-                            current_ind =  vocabs[current_word]
+                        for i in xrange(10):
+                            current_word = '<start>'
+                            sentence = [current_word]
+                            #get index of <start> token:
 
-                            x = [[current_ind]]
+                            while current_word != '<end>':
+                                current_ind =  vocabs[current_word]
 
-                            feed = m.create_feed_dict(inputs_batch=x, seq_length=[1])
+                                x = [[current_ind]]
 
-                            preds = session.run(m.last_state, feed_dict=feed)
+                                feed = m.create_feed_dict(inputs_batch=x, seq_length=[1])
 
-                            largest_inds = preds.argsort()[::-1][:100] #top 100
-                            largest_unscaled_p = preds[largest_inds]
-                            scaled_p = largest_unscaled_p/sum(largest_unscaled_p)
-                            current_ind = np.random.choice(largest_inds, p = scaled_p)
+                                preds = session.run(m.last_state, feed_dict=feed)
 
-                            current_word = vocabs_reversed[current_ind]
-                            sentence.append(current_word)
+                                largest_inds = preds.argsort()[::-1][:15] #top 100
+                                largest_unscaled_p = preds[largest_inds]
+                                scaled_p = largest_unscaled_p/sum(largest_unscaled_p)
+                                current_ind = np.random.choice(largest_inds, p = scaled_p)
 
-                        print ' '.join(sentence[1:-1])
+                                current_word = vocabs_reversed[current_ind]
+                                sentence.append(current_word)
+
+                            all_sentences.append(' '.join(sentence[1:-1]))
+
+                        for sentence in all_sentences:
+                            print sentence
 
                         continue
 
