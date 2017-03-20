@@ -269,7 +269,7 @@ def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.3
         epoch_time = time.clock() - start_epoch
         print("Epoch {:d} finished in {:f} seconds".format( (epoch + 1), epoch_time))
         error_test = sess.run(model.error, 
-                     {data:test['x'], target:test['y'], dropout:1} )
+                     {data:dev['x'], target:dev['y'], dropout:1} )
         error_train = sess.run(model.error, 
                      {data:train['x'], target:train['y'], dropout:1} )
         print('Epoch:{:2d}, Training Error {:3.1f}%, Test Error:{:3.1f}%'.format( (epoch + 1), (100*error_train), (100*error_test)))
@@ -278,14 +278,14 @@ def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.3
     if plot_confusion == True:
         # Plot confusion matrix
         predictions = sess.run(model.prediction,
-	   	        {data:test['x'], target:test['y'], dropout:1} )
-        conf = confusion_matrix(np.argmax(test['y'], axis = 1), np.argmax(predictions, axis = 1))
-	np.save(address + 'confusion_mat.npy', conf)
+	   	        {data:dev['x'], target:dev['y'], dropout:1} )
+        conf = confusion_matrix(np.argmax(dev['y'], axis = 1), np.argmax(predictions, axis = 1))
+	np.save(address + 'confusion_mat_final.npy', conf)
 	print(conf)
     
     if save_flag == True: 
         # Save trained model to data folder
-        saver.save(sess, address + 'classification_model_200')
+        saver.save(sess, address + 'classification_model_final')
 
     return(error_train, error_test)
 
@@ -293,7 +293,7 @@ def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.3
 # Run main() if current namespace is main
 if __name__ == '__main__':
     address = r'/home/cs224n/CS-224N-Final-Project/data//'
-    error_train, error_test = run_classifier(address, epoch_size = 10, minibatch_size = 100, 
-					     train_percent = 80, dev_percent = 10, 
-                                             plot_confusion = True, save_flag = True)
+    error_train, error_test = run_classifier(address, epoch_size = 10, layers = 1, dropout_const = 0.55, \
+	num_hidden = 200, minibatch_size = 100, learning_rate = 0.005, max_sentence_length = 20, \
+        train_percent = 80, dev_percent = 10, plot_confusion = True, save_flag = True)
     
