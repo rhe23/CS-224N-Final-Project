@@ -455,8 +455,10 @@ def generate(args):
 
                 all_sentences.append(' '.join(sentence[1:-1]))
 
-            for sentence in all_sentences:
-                print sentence
+            with open('./code/trainer/diag/sentences.csv', 'a') as sentence_csv:
+                csvwriter = csv.writer(sentence_csv)
+                for sentence in all_sentences:
+                    csvwriter.writerow([args.model, sentence, args.seqlength, args.hiddensize])
 
 
 def generator(args):
