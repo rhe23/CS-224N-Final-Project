@@ -442,17 +442,15 @@ def generate(args):
                     largest_10_unscaled_p = preds[largest_10_inds]
                     scaled_p = largest_10_unscaled_p/sum(largest_10_unscaled_p)
 
-                    while len(sentence) < 5:
+                    current_ind = np.random.choice(largest_10_inds, p = scaled_p)
 
+                    current_word = vocabs_reversed[current_ind]
+
+                    while len(sentence) <5 and current_word == "<end>":
                         current_ind = np.random.choice(largest_10_inds, p = scaled_p)
 
                         current_word = vocabs_reversed[current_ind]
 
-                        if current_word == "<end>":
-                            continue
-                        else:
-                            break
-                
                     sentence.append(current_word)
 
                 all_sentences.append(' '.join(sentence[1:-1]))
