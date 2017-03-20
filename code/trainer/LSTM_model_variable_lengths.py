@@ -379,7 +379,7 @@ def train(args):
 
             with open('./code/trainer/diag/diagnostics_new_wtf.csv', 'a') as diag_out:
                 csv_diag_out = csv.writer(diag_out)
-                csv_diag_out.writerow([args.subreddit, str(best_perplexity), str(config_file.drop_out), str(config_file.hidden_unit_size), str(config_file.learning_rate), str(config_file.embed_size)], str(config_file.sequence_length))
+                csv_diag_out.writerow([args.subreddit, str(best_perplexity), str(config_file.drop_out), str(config_file.hidden_unit_size), str(config_file.learning_rate), str(config_file.embed_size), str(config_file.sequence_length)])
 
 def generate(args):
 
