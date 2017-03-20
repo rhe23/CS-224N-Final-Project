@@ -459,7 +459,7 @@ def generate(args):
             with open('./code/trainer/diag/sentences.csv', 'a') as sentence_csv:
                 csvwriter = csv.writer(sentence_csv)
                 for sentence in all_sentences:
-                    csvwriter.writerow([args.model, sentence, args.seqlength, args.hiddensize, args.peephole, args.dropout])
+                    csvwriter.writerow([args.model, sentence, args.seqlength, args.hiddensize, args.peephole])
 
 
 def generator(args):
