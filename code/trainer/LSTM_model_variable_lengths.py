@@ -377,9 +377,9 @@ def train(args):
                     print "New Best Perplexity: " + str(best_perplexity)
                 saver.save(sess, "./code/trainer/models/" + r.lower() + "/single_epoch_" + str(epoch + 1) + ".ckpt")
 
-            with open('./code/trainer/diag/diagnostics_single_backprop.csv', 'a') as diag_out:
+            with open('./code/trainer/diag/diagnostics_new_wtf.csv', 'a') as diag_out:
                 csv_diag_out = csv.writer(diag_out)
-                csv_diag_out.writerow([args.subreddit, str(best_perplexity), str(config_file.drop_out), str(config_file.hidden_unit_size), str(config_file.learning_rate), str(config_file.embed_size)])
+                csv_diag_out.writerow([args.subreddit, str(best_perplexity), str(config_file.drop_out), str(config_file.hidden_unit_size), str(config_file.learning_rate), str(config_file.embed_size)], str(config_file.sequence_length))
 
 def generate(args):
 
@@ -441,9 +441,18 @@ def generate(args):
                     largest_10_inds = preds.argsort()[::-1][:args.numwords]
                     largest_10_unscaled_p = preds[largest_10_inds]
                     scaled_p = largest_10_unscaled_p/sum(largest_10_unscaled_p)
-                    current_ind = np.random.choice(largest_10_inds, p = scaled_p)
 
-                    current_word = vocabs_reversed[current_ind]
+                    while len(sentence) < 5:
+
+                        current_ind = np.random.choice(largest_10_inds, p = scaled_p)
+
+                        current_word = vocabs_reversed[current_ind]
+
+                        if current_word == "<end>":
+                            continue
+                        else:
+                            break
+                
                     sentence.append(current_word)
 
                 all_sentences.append(' '.join(sentence[1:-1]))
