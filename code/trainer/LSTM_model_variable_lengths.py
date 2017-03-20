@@ -562,7 +562,7 @@ if __name__ == '__main__':
     parse.add_argument('-do', '--dropout', type = float, default = 0.5)
     parse.add_argument('-l', '--numlayers', type=int, default = 2)
     parse.add_argument('-sq', '--seqlength', type = int, default = 10)
-    parse.add_argument('-p', '--peephole', type = bool, default = False)
+    parse.add_argument('-p', '--peephole', type =int, default = 0)
 
     parse = subparser.add_parser('generate') #generate phrases
     parse.set_defaults(function = generate)
@@ -572,7 +572,7 @@ if __name__ == '__main__':
     parse.add_argument('-l', '--numlayers', type=int, default = 2)
     parse.add_argument('-sq', '--seqlength', type = int, default = 10)
     parse.add_argument('-hs', '--hiddensize', type = int, default = 100)
-    parse.add_argument('-p', '--peephole', type = bool, default = False)
+    parse.add_argument('-p', '--peephole', type = int, default = 0)
 
     parse = subparser.add_parser('generator', help='')
     parse.set_defaults(function = generator)
