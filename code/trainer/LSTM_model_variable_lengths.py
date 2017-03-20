@@ -28,7 +28,7 @@ class Config:
         self.output_size = output_size #the size of the vocab
         self.learning_rate = learning_rate
         self.numlayers = num_layers
-        self.peephole = peephole
+        self.peephole = peepholes
 
 def generate_padded_seq(max_length, vocab_length, sentences):
     return np.array([sentence + [vocab_length-1]*(max_length-len(sentence)) for sentence in sentences], dtype=np.int32) #vocab_length-1 because that's the index for the NULL vector in our embedding matrix
