@@ -371,6 +371,7 @@ def train(args):
                         # perplexities = sess.run(m.error, feed_dict=feed)
                         # print "Single word-pair perplexity: " + str(perplexities)
                         batch_loss += loss
+                    batch_loss = batch_loss/len(sequences)
                     batch_perplexity = batch_loss**2
                     total_perplexity += batch_perplexity
 
