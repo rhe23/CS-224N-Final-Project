@@ -12,7 +12,7 @@ max_length = 0
 class Config:
 
     def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 100, batch_size = 256, n_epochs = 10, num_layers =1, learning_rate=0.05, drop_out = 0.5,
-                 sequence_length = 10, peephole = false):
+                 sequence_length = 10, peephole = False):
         self.sequence_length = sequence_length
         self.dev_set_size =0.1
         self.test_set_size = 0
