@@ -190,8 +190,7 @@ class RNN_LSTM:
         h = np.zeros((len(batch), self.config.hidden_unit_size))
 
         # assert batch_x_mat.shape[1] == batch_y_mat.shape[1], "x and y are not the same length. x: " +str(batch_x_mat.shape[1]) + ". y: " + str(batch_y_mat.shape[1])
-        for i in sequences:
-
+        for i in range(batch_x_mat.shape[1]):
             x = batch_x_mat[:,i]
             y = batch_y_mat[:,i]
             m = masks[:,i]
@@ -201,11 +200,16 @@ class RNN_LSTM:
             last_state, loss = sess.run([self.train_op, self.loss], feed_dict={self.input_placeholder:x, self.labels_placeholder: y, self.mask_placeholder: m, self.cell_state: c, self.hidden_state:h})
             c = last_state[1][0]
             h = last_state[1][1]
+
+            # c = np.zeros((len(batch), self.config.hidden_unit_size))
+            # h = np.zeros((len(batch), self.config.hidden_unit_size))
+            # print c
+            # print h
             # print last_state[1]
             # return sess.run([self.pred], feed_dict={self.input_placeholder:x, self.labels_placeholder: y, self.mask_placeholder: m, self.cell_state: c, self.hidden_state:h})
 
             total_loss += loss[0]
-        return total_loss
+        return total_loss/len(padded)
 
     def test_on_batch_single(self, sess, batch):
 
@@ -303,7 +307,7 @@ def train(args):
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    config_file = Config(drop_out=args.dropout, max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 256,
+    config_file = Config(drop_out=args.dropout, max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 2,
                          learning_rate = args.learningrate, hidden_unit_size=args.hiddensize, num_layers=args.numlayers, sequence_length=args.seqlength, peepholes = args.peephole)
 
     idx = np.arange(len(sample))
