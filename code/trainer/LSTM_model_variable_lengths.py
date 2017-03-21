@@ -488,8 +488,8 @@ def generator(args):
         with tf.Session() as session:
             session.run(init)
 
-            print "Hello, please select the sureddit from which you would like to generate a post for: \n 1. AskReddit \n 2. LifeProTips \n 3. nottheonion \n 4. news \n 5. science" \
-                  "\n 6. trees \n 7. tifu \n 8. personalfinance \n 9. mildlyinteresting \n 10.interestingasfuck "
+            print "Hello, please select the sureddit from which you would like to generate a post for: \n 1.  AskReddit \n 2.  LifeProTips \n 3.  nottheonion \n 4.  news \n 5.  science" \
+                  "\n 6.  trees \n 7.  tifu \n 8.  personalfinance \n 9.  mildlyinteresting \n 10. interestingasfuck "
 
             while True:
 
