@@ -267,7 +267,7 @@ class RNN_LSTM:
 
             dev_loss += loss
 
-        return dev_loss
+        return dev_loss/dev_batch
 
 def train(args):
     n_epochs = 20
@@ -334,6 +334,7 @@ def train(args):
                 dev_loss = m.run_epoch(sess, np.array(train), np.array(dev))
 
                 perplexity = 2**dev_loss
+                print "Perplexity for Epoch " + str(epoch + 1) + ":" + str(perplexity)
                 saver = tf.train.Saver()
                 if perplexity < best_perplexity:
                     best_perplexity = perplexity
