@@ -62,6 +62,7 @@ class RNN_LSTM:
 
         # #build model steps
         self.add_placeholders() #initiate placeholders
+        self.set_cell()
         self.pred = self.training() #forward prop
         self.loss = self.calc_loss(self.pred) #calculate loss
         self.train_op = self.back_prop(self.loss) #optimization step
@@ -119,7 +120,6 @@ class RNN_LSTM:
         #sets up the construction of the graphs such that when session is called these operations will run
 
         self.add_embeddings()
-        self.set_cell()
         # state = tf.Variable(self.cell.zero_state(self.config.batch_size, dtype = tf.float32), trainable=False) #initial state
 
         outputs, last_state = tf.nn.dynamic_rnn(self.cell, inputs = self.x, dtype = tf.float32)
@@ -257,21 +257,6 @@ class RNN_LSTM:
             t = self.train_on_batch_single(sess, data[indices])
 
             print "Batch " + str(i+1) + " Loss: " + str(t)
-
-
-    def test_session(self, session, inds): #for debugging purposes only
-        #take random sample of training set:
-
-        # inds = np.random.choice(self.training_set, math.floor(0.01*len(self.training_set)), replace=False)
-        small_s = generate_padded_seq(self.config.max_length, self.config.output_size, inds)
-        small_s_y = [i[1:] for i in small_s]
-        seq_len = [len(i) for i in inds]
-        masks = get_masks(inds, self.config.max_length)
-
-        feed = self.create_feed_dict(inputs_batch= small_s, labels_batch= small_s_y, dropout= self.config.drop_out, mask_batch=masks, seq_length = seq_len)
-
-        loss = session.run([self.loss], feed_dict=feed)
-        return loss
 
 def train(args):
     n_epochs = 20
