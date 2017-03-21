@@ -80,7 +80,7 @@ def convert_to_XY(data, word_dict):
                 try:
                     temp.append(word_dict[j])
                 except:
-                    print('ERROR: Word ' + j + 'is not in the dictionary!\n Please try a different word.')
+                    print('ERROR: Word ' + j + ' is not in the dictionary!\n Please try a different word.')
                     return None
             X.append(temp)                        
             #X.append([word_dict[j] for j in sentence])

@@ -218,15 +218,18 @@ class Classification:
         return weight, bias
         
 
-def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.185, max_sentence_length=20, layers=1, train_percent = 80, dev_percent = 10, plot_confusion = False, save_flag = False):
+def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.3, max_sentence_length=20, layers=1, num_hidden = 200, learning_rate = 0.003, train_percent = 80, dev_percent = 10, plot_confusion = False, save_flag = False):
     
     # Load embeddings
     # Data address
-    embeddings = np.load(address + 'large_weights.pkl_iter100')
+    #embeddings = np.load(address + 'large_weights.pkl_iter100') 
+    with open(address + 'new_embeddings_final_filtered.pkl') as input:
+        embeddings = pickle.load(input)
     zeroVecAdd, zeroVecLength = np.shape(embeddings)
-    with open(address + 'embedding_dict') as input:
+    #with open(address + 'embedding_dict') as input:
+        #embedAddress_dict = pickle.load(input)
+    with open(address + 'large_vocab_final_filtered.pkl') as input:
         embedAddress_dict = pickle.load(input)
-
     # Call function to import data
     # replace subreddits with one hot vectors
     # replace list of words with list of embedding matrix addresses
@@ -241,7 +244,7 @@ def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.1
     data = tf.placeholder(tf.int32, [None, max_sentence_length])
     target = tf.placeholder(tf.float32, [None, class_size])
     dropout = tf.placeholder(tf.float32)   
-    model = Classification(config, embeddings, data, target, dropout)
+    model = Classification(config, embeddings, data, target, dropout, num_hidden = num_hidden, learning_rate = learning_rate)
     if save_flag == True:    
         saver = tf.train.Saver()
     sess = tf.Session()
@@ -266,7 +269,7 @@ def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.1
         epoch_time = time.clock() - start_epoch
         print("Epoch {:d} finished in {:f} seconds".format( (epoch + 1), epoch_time))
         error_test = sess.run(model.error, 
-                     {data:test['x'], target:test['y'], dropout:1} )
+                     {data:dev['x'], target:dev['y'], dropout:1} )
         error_train = sess.run(model.error, 
                      {data:train['x'], target:train['y'], dropout:1} )
         print('Epoch:{:2d}, Training Error {:3.1f}%, Test Error:{:3.1f}%'.format( (epoch + 1), (100*error_train), (100*error_test)))
@@ -275,14 +278,14 @@ def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.1
     if plot_confusion == True:
         # Plot confusion matrix
         predictions = sess.run(model.prediction,
-	   	        {data:test['x'], target:test['y'], dropout:1} )
-        conf = confusion_matrix(np.argmax(test['y'], axis = 1), np.argmax(predictions, axis = 1))
-	np.save(address + 'confusion_mat.npy', conf)
+	   	        {data:dev['x'], target:dev['y'], dropout:1} )
+        conf = confusion_matrix(np.argmax(dev['y'], axis = 1), np.argmax(predictions, axis = 1))
+	np.save(address + 'confusion_mat_final.npy', conf)
 	print(conf)
     
     if save_flag == True: 
         # Save trained model to data folder
-        saver.save(sess, address + 'classification_model')
+        saver.save(sess, address + 'classification_model_final')
 
     return(error_train, error_test)
 
@@ -290,7 +293,7 @@ def run_classifier(address, epoch_size=15, minibatch_size=100, dropout_const=0.1
 # Run main() if current namespace is main
 if __name__ == '__main__':
     address = r'/home/cs224n/CS-224N-Final-Project/data//'
-    error_train, error_test = run_classifier(address, epoch_size = 10, minibatch_size = 100, 
-					     train_percent = 80, dev_percent = 10, 
-                                             plot_confusion = True, save_flag = True)
+    error_train, error_test = run_classifier(address, epoch_size = 10, layers = 1, dropout_const = 0.55, \
+	num_hidden = 200, minibatch_size = 100, learning_rate = 0.005, max_sentence_length = 20, \
+        train_percent = 80, dev_percent = 10, plot_confusion = True, save_flag = True)
     

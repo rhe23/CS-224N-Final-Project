@@ -12,12 +12,12 @@ max_length = 0
 
 class Config:
 
-    def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 100, batch_size = 256, n_epochs = 10, num_layers =1, learning_rate=0.05):
+    def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 100, batch_size = 256, n_epochs = 10, num_layers =1, learning_rate=0.05, drop_out = 0.5):
         self.dev_set_size =0.1
         self.test_set_size = 0
         self.classify= False #determines if we're running a classification
         self.n_features = n_features #number of features for each word in the data
-        self.drop_out = 0.5
+        self.drop_out = drop_out
         self.n_classes = n_classes
         self.max_length = max_length #longest length of all our sentences
         self.hidden_unit_size = hidden_unit_size
@@ -281,10 +281,10 @@ def train(args):
     r = args.subreddit
     sample = np.array([get_indices(j) for j in all_dat[r]])
     # subsample_y = [get_indices(j) for j[1:] in all_dat['personalfinance']][0:100]
-    max_length = max(len(i) for i in sample)
+    max_length = 10
 
     #seq_length, max_length, embed_size, output_size
-    config_file = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, learning_rate = args.learningrate, hidden_unit_size=args.hiddensize)
+    config_file = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 128, drop_out=args.dropout, learning_rate = args.learningrate, hidden_unit_size=args.hiddensize)
 
     idx = np.arange(len(sample))
 
@@ -308,12 +308,13 @@ def train(args):
 
                 # # #evaluate training perplexity
                 test_size = len(dev)
+
                 total_perplexity = 0
                 total_batches = 0
                 for k, indices in enumerate(get_batch(test_size, 100)):
 
                     total_batches += 1
-                    test_batch = test[indices]
+                    test_batch = dev[indices]
                     masks = get_masks(test_batch, config_file.max_length)
 
                     seq_len = [len(i) for i in test_batch]
@@ -330,40 +331,7 @@ def train(args):
                 if (total_perplexity/total_batches) < best_perplexity:
                     best_perplexity = (total_perplexity/total_batches)
                     print "New Best Perplexity: " + str(best_perplexity)
-                saver.save(sess, "./code/trainer/models/" + r + "/epoch_" + str(epoch + 1) + ".ckpt")
-
-                # #generate outputted sentence using the best weights:
-                predicted_indices = []
-                actual_sentences = []
-                for k, indices in enumerate(get_batch(test_size, 50)):
-
-                    test_batch = test[indices]
-                    # actual_sentences += test_batch
-                    masks = get_masks(test_batch, config_file.max_length)
-
-                    for case in test_batch:
-                        actual_sentences.append(get_words(case))
-
-                    seq_len = [len(i) for i in test_batch]
-                    batch_x = generate_padded_seq(config_file.max_length, config_file.output_size, test_batch)
-                    batch_y = [i[1:] for i in batch_x]
-                    feed = m.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= config_file.drop_out, mask_batch=masks, seq_length = seq_len)
-
-                    predicted_inds_unmasked = sess.run(m.probs, feed_dict= feed)
-
-                    seq_inds = np.arange(len(seq_len))
-
-                    for row in seq_inds:
-                        predicted_indices.append(predicted_inds_unmasked[row][0:seq_len[row]])
-
-                    predicted_words = [get_words(j) for j in predicted_indices]
-                predicted_pairs = zip(predicted_words, actual_sentences)
-
-                with open('./code/trainer/results/' + r + '/epoch_' + str(epoch + 1) + '_predictions.csv', 'wb') as out:
-                    csv_out=csv.writer(out)
-                    csv_out.writerow(['Predicted','Actual'])
-                    for row in predicted_pairs:
-                        csv_out.writerow(row)
+            saver.save(sess, "./code/trainer/models/" + r + "/epoch_" + str(epoch + 1) + ".ckpt")
 
             with open('./code/trainer/diag/diagnostics.csv', 'a') as diag_out:
                 csv_diag_out = csv.writer(diag_out)
@@ -396,7 +364,7 @@ def generate(args):
     model = args.model
     model_path = './code/trainer/models/' + model +'/'
 
-    c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36) #max length is 1 becuase we want 1 word generated at a time
+    c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, drop_out=1) #max length is 1 becuase we want 1 word generated at a time
 
     with tf.Graph().as_default():
 
@@ -407,6 +375,10 @@ def generate(args):
         with tf.Session() as session:
             session.run(init)
             saver.restore(session, tf.train.latest_checkpoint(model_path))
+
+            all_sentences = []
+
+            # for sent in range(args.numsentences):
 
             current_word = '<start>'
             sentence = [current_word]
@@ -429,7 +401,11 @@ def generate(args):
                 current_word = vocabs_reversed[current_ind]
                 sentence.append(current_word)
 
+                # all_sentences.append(' '.join(sentence[1:-1]))
             print sentence
+            # for sentence in all_sentences:
+            #     print sentence
+            #     print "\n"
 
 
 if __name__ == '__main__':
@@ -441,11 +417,13 @@ if __name__ == '__main__':
     parse.add_argument('-r', '--subreddit', type =str, choices= ['AskReddit', 'LifeProTips', 'nottheonion', 'news', 'science', 'trees', 'tifu', 'personalfinance', 'mildlyinteresting', 'interestingasfuck'])
     parse.add_argument('-lr', '--learningrate', type = float)
     parse.add_argument('-hs', '--hiddensize', type =int)
+    parse.add_argument('-do', '--dropout', type = float, default = 1)
 
     parse = subparser.add_parser('generate') #generate phrases
     parse.set_defaults(function = generate)
     parse.add_argument('-g', '--model', type = str,choices= ['AskReddit', 'LifeProTips', 'nottheonion', 'news', 'science', 'trees', 'tifu', 'personalfinance', 'mildlyinteresting', 'interestingasfuck'])
     parse.add_argument('-nw', '--numwords', type = int)
+    # parse.add_argument('-n', '--numsentences', type = int)
     ARGS = parser.parse_args()
     if ARGS.function is not None:
 

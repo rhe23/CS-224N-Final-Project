@@ -1,5 +1,6 @@
-import cPickle, math
+import cPickle, math, os
 import numpy as np
+print os.getcwd()
 
 def get_embeddings(embed_path = './data/new_embeddings.pkl'):
 
@@ -32,9 +33,9 @@ def get_dev_test_sets(dev_size, test_size, training_indices):
     temp_inds = np.random.choice(training_indices, int(math.floor(total_sizes*len(training_indices))), replace = False)
     training_inds = [i for i in training_indices if i not in temp_inds]
     dev_inds = temp_inds[:len(temp_inds)/2]
-    test_inds = temp_inds[len(temp_inds)/2:]
+    # test_inds = temp_inds[len(temp_inds)/2:]
 
-    return (training_inds, dev_inds, test_inds)
+    return (training_inds, dev_inds, [])
 
 
 def get_masks(sentences, max_length):

@@ -1,3 +1,4 @@
+#generate variable lengths as samples
 import numpy as np
 import argparse, os, collections, csv, sys, cPickle
 import tensorflow as tf
@@ -10,7 +11,9 @@ max_length = 0
 
 class Config:
 
-    def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 100, batch_size = 256, n_epochs = 10, num_layers =1, learning_rate=0.05, drop_out = 0.5):
+    def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 100, batch_size = 256, n_epochs = 10, num_layers =1, learning_rate=0.05, drop_out = 0.5,
+                 sequence_length = 10, peepholes = False):
+        self.sequence_length = sequence_length
         self.dev_set_size =0.1
         self.test_set_size = 0
         self.classify= False #determines if we're running a classification
@@ -25,9 +28,21 @@ class Config:
         self.output_size = output_size #the size of the vocab
         self.learning_rate = learning_rate
         self.numlayers = num_layers
+        self.peephole = peepholes
 
 def generate_padded_seq(max_length, vocab_length, sentences):
     return np.array([sentence + [vocab_length-1]*(max_length-len(sentence)) for sentence in sentences], dtype=np.int32) #vocab_length-1 because that's the index for the NULL vector in our embedding matrix
+
+
+def get_sequence(max_length, sequence_length):
+    sequences = []
+    data_indices = np.arange(max_length)
+
+    for i in xrange(0, max_length-1, sequence_length):
+        if i+sequence_length <= max_length-1:
+            sequences.append(data_indices[i:i+sequence_length])
+        else: sequences.append(data_indices[i:max_length-1])
+    return np.array(sequences)
 
 class RNN_LSTM:
 
@@ -60,7 +75,7 @@ class RNN_LSTM:
 
         self.dropout_placeholder = tf.placeholder(tf.float32)
 
-        self.mask_placeholder = tf.placeholder(tf.bool, [None, 1]) #None here is to account for variable batch_size
+        self.mask_placeholder = tf.placeholder(tf.bool, [None, None]) #None here is to account for variable batch_size
 
         self.labels_placeholder = tf.placeholder(tf.int32, shape= (None, None)) #None here is batch_size
 
@@ -93,7 +108,7 @@ class RNN_LSTM:
     def set_cell(self):
 
         self.cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.hidden_unit_size,
-                                        initializer=tf.contrib.layers.xavier_initializer(), activation=tf.sigmoid, state_is_tuple=True)
+                                        initializer=tf.contrib.layers.xavier_initializer(), activation=tf.sigmoid, state_is_tuple=True, use_peepholes=self.config.peephole)
         self.cell = tf.nn.rnn_cell.DropoutWrapper(cell = self.cell, output_keep_prob=self.dropout_placeholder)
         # self.cell = tf.contrib.rnn.MultiRNNCell([self.cell]*self.config.num_layers, state_is_tuple=False)
         self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
@@ -107,7 +122,7 @@ class RNN_LSTM:
         self.set_cell()
         # state = tf.Variable(self.cell.zero_state(self.config.batch_size, dtype = tf.float32), trainable=False) #initial state
 
-        outputs, last_state = tf.nn.dynamic_rnn(self.cell, inputs = self.x, dtype = tf.float32, sequence_length=self.sequence_placeholder)
+        outputs, last_state = tf.nn.dynamic_rnn(self.cell, inputs = self.x, dtype = tf.float32)
         # outputs = tf.transpose(outputs, [1,0,2])
         # # # # Gather last output slice
         #
@@ -187,16 +202,16 @@ class RNN_LSTM:
 
         masks = get_masks(batch, self.config.max_length)
 
-        feed = self.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= self.config.drop_out, mask_batch=masks, seq_length = seq_len)
+        feed = self.create_feed_dict(inputs_batch=batch_x, labels_batch= batch_y, dropout= self.config.drop_out, mask_batch=masks)
 
         _, loss = sess.run([self.train_op, self.loss], feed_dict=feed)
         # loss = sess.run(self.error, feed_dict=feed)
-        # pred = sess.run(self.probs, feed_dict=feed)
+        # pred = sess.run(self.pred, feed_dict=feed)
         # return pred
         return _, loss
 
     def train_on_batch_single(self, sess, batch):
-
+        seq_length = self.config.sequence_length
         total_loss = 0.
 
         max_len = max(len(case) for case in batch)
@@ -205,21 +220,23 @@ class RNN_LSTM:
         batch_x = [i[:-1] for i in padded]
         batch_y = [i[1:] for i in padded]
 
+        sequences = get_sequence(max_len, sequence_length=seq_length)
         #make the batches into a matrix so that we can have easier time feeding
 
         batch_x_mat = np.matrix(batch_x)
         batch_y_mat = np.matrix(batch_y)
 
-        assert batch_x_mat.shape[1] == batch_y_mat.shape[1], "x and y are not the same length. x: " +str(batch_x_mat.shape[1]) + ". y: " + str(batch_y_mat.shape[1])
+        # assert batch_x_mat.shape[1] == batch_y_mat.shape[1], "x and y are not the same length. x: " +str(batch_x_mat.shape[1]) + ". y: " + str(batch_y_mat.shape[1])
 
-        for i in range(batch_x_mat.shape[1]):
-
+        for i in sequences:
             x = batch_x_mat[:,i]
             y = batch_y_mat[:,i]
             m = masks[:,i]
-            feed = self.create_feed_dict(inputs_batch=x, labels_batch= y, dropout= self.config.drop_out, mask_batch=m, seq_length = [1] * len(batch))
+
+            feed = self.create_feed_dict(inputs_batch=x, labels_batch= y, dropout= self.config.drop_out, mask_batch=m)
 
             _, loss = sess.run([self.train_op, self.loss], feed_dict=feed)
+            # pred = sess.run(self.pred, feed_dict=feed)
 
             # preds = sess.run(self.loss, feed_dict=feed)
 
@@ -294,8 +311,8 @@ def train(args):
     max_length = max(len(i) for i in sample)
 
     #seq_length, max_length, embed_size, output_size
-    config_file = Config(drop_out=args.dropout, max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 128,
-                         learning_rate = args.learningrate, hidden_unit_size=args.hiddensize, num_layers=args.numlayers)
+    config_file = Config(drop_out=args.dropout, max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 256,
+                         learning_rate = args.learningrate, hidden_unit_size=args.hiddensize, num_layers=args.numlayers, sequence_length=args.seqlength, peepholes = args.peephole)
 
     idx = np.arange(len(sample))
 
@@ -337,31 +354,37 @@ def train(args):
                     batch_x_mat = np.matrix(batch_x)
                     batch_y_mat = np.matrix(batch_y)
 
-                    batch_perplexity = 0
+                    # batch_perplexity = 0
 
-                    for bat in range(batch_x_mat.shape[1]):
+                    batch_loss = 0.
+                    sequences = get_sequence(max_len, sequence_length=config_file.sequence_length)
+
+                    for bat in sequences:
                         x = batch_x_mat[:,bat]
                         y = batch_y_mat[:,bat]
                         batch_mask = masks[:,bat]
                         feed = m.create_feed_dict(inputs_batch=x, labels_batch= y,
                                                   dropout= config_file.drop_out, mask_batch=batch_mask, seq_length = [1] * len(test_batch))
 
-                        perplexities = sess.run(m.error, feed_dict=feed)
-                        print "Single word-pair perplexity: " + str(perplexities)
-                        batch_perplexity += perplexities
 
+                        loss = sess.run(m.loss, feed_dict=feed)
+                        # perplexities = sess.run(m.error, feed_dict=feed)
+                        # print "Single word-pair perplexity: " + str(perplexities)
+                        batch_loss += loss
+                    batch_loss = batch_loss/len(sequences)
+                    batch_perplexity = batch_loss**2
                     total_perplexity += batch_perplexity
 
-                    print "Epoch " + str(epoch + 1) + " Total test perplexity for batch " + str(k + 1) +  ' :' + str(batch_perplexity/batch_x_mat.shape[1])
+                    print "Epoch " + str(epoch + 1) + " Total test perplexity for batch " + str(k + 1) +  ' :' + str(batch_perplexity)
 
                 if total_perplexity < best_perplexity:
                     best_perplexity = total_perplexity
                     print "New Best Perplexity: " + str(best_perplexity)
-                saver.save(sess, "./code/trainer/models/" + r.lower() + "/single_epoch_" + str(epoch + 1) + ".ckpt")
+            saver.save(sess, "./code/trainer/models/" + r.lower() + "/single_epoch_" + str(epoch + 1) + ".ckpt")
 
-            with open('./code/trainer/diag/diagnostics_single_backprop.csv', 'a') as diag_out:
+            with open('./code/trainer/diag/diagnostics_new_final.csv', 'a') as diag_out:
                 csv_diag_out = csv.writer(diag_out)
-                csv_diag_out.writerow([args.subreddit, str(best_perplexity), str(config_file.drop_out), str(config_file.hidden_unit_size), str(config_file.learning_rate), str(config_file.embed_size)])
+                csv_diag_out.writerow([args.subreddit, str(config_file.peephole), str(best_perplexity), str(config_file.drop_out), str(config_file.hidden_unit_size), str(config_file.learning_rate), str(config_file.embed_size), str(config_file.sequence_length)])
 
 def generate(args):
 
@@ -387,10 +410,11 @@ def generate(args):
     def get_words(sent):
         return [vocabs_reversed[i] for i in sent]
 
-    model = args.model
+    model = args.model.lower()
     model_path = './code/trainer/models/' + model +'/'
 
-    c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, num_layers=args.numlayers, drop_out=1, hidden_unit_size=args.hiddensize) #max length is 1 becuase we want 1 word generated at a time
+    c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, num_layers=args.numlayers, drop_out=1, sequence_length=args.seqlength,
+               hidden_unit_size=args.hiddensize, peepholes = args.peephole) #max length is 1 becuase we want 1 word generated at a time
 
     with tf.Graph().as_default():
 
@@ -422,15 +446,24 @@ def generate(args):
                     largest_10_inds = preds.argsort()[::-1][:args.numwords]
                     largest_10_unscaled_p = preds[largest_10_inds]
                     scaled_p = largest_10_unscaled_p/sum(largest_10_unscaled_p)
+
                     current_ind = np.random.choice(largest_10_inds, p = scaled_p)
 
                     current_word = vocabs_reversed[current_ind]
+
+                    while len(sentence) <7 and current_word == "<end>":
+                        current_ind = np.random.choice(largest_10_inds, p = scaled_p)
+
+                        current_word = vocabs_reversed[current_ind]
+
                     sentence.append(current_word)
 
                 all_sentences.append(' '.join(sentence[1:-1]))
 
-            for sentence in all_sentences:
-                print sentence
+            with open('./code/trainer/diag/sentences.csv', 'a') as sentence_csv:
+                csvwriter = csv.writer(sentence_csv)
+                for sentence in all_sentences:
+                    csvwriter.writerow([args.model, sentence, args.seqlength, args.hiddensize, args.peephole])
 
 
 def generator(args):
@@ -459,7 +492,7 @@ def generator(args):
     def get_words(sent):
         return [vocabs_reversed[i] for i in sent]
 
-    c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, drop_out=1) #max length is 1 becuase we want 1 word generated at a time
+    c = Config(max_length = 1, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 36, drop_out=1, sequence_length=args.seqlength) #max length is 1 becuase we want 1 word generated at a time
 
     with tf.Graph().as_default():
 
@@ -486,35 +519,39 @@ def generator(args):
                         model_path = './code/trainer/models/' + subr +'/'
                         saver.restore(session, tf.train.latest_checkpoint(model_path))
 
-                        current_word = '<start>'
-                        sentence = [current_word]
-                        #get index of <start> token:
+                        all_sentences = []
 
-                        while current_word != '<end>':
-                            current_ind =  vocabs[current_word]
+                        for i in xrange(10):
+                            current_word = '<start>'
+                            sentence = [current_word]
+                            #get index of <start> token:
 
-                            x = [[current_ind]]
+                            while current_word != '<end>':
+                                current_ind =  vocabs[current_word]
 
-                            feed = m.create_feed_dict(inputs_batch=x, seq_length=[1])
+                                x = [[current_ind]]
 
-                            preds = session.run(m.last_state, feed_dict=feed)
+                                feed = m.create_feed_dict(inputs_batch=x, seq_length=[1])
 
-                            largest_inds = preds.argsort()[::-1][:100] #top 100
-                            largest_unscaled_p = preds[largest_inds]
-                            scaled_p = largest_unscaled_p/sum(largest_unscaled_p)
-                            current_ind = np.random.choice(largest_inds, p = scaled_p)
+                                preds = session.run(m.last_state, feed_dict=feed)
 
-                            current_word = vocabs_reversed[current_ind]
-                            sentence.append(current_word)
+                                largest_inds = preds.argsort()[::-1][:15] #top 100
+                                largest_unscaled_p = preds[largest_inds]
+                                scaled_p = largest_unscaled_p/sum(largest_unscaled_p)
+                                current_ind = np.random.choice(largest_inds, p = scaled_p)
 
-                        print ' '.join(sentence[1:-1])
+                                current_word = vocabs_reversed[current_ind]
+                                sentence.append(current_word)
+
+                            all_sentences.append(' '.join(sentence[1:-1]))
+
+                        for sentence in all_sentences:
+                            print sentence
 
                         continue
 
                 except EOFError:
                     continue
-
-
 
 
 if __name__ == '__main__':
@@ -528,6 +565,8 @@ if __name__ == '__main__':
     parse.add_argument('-hs', '--hiddensize', type =int, default = 100)
     parse.add_argument('-do', '--dropout', type = float, default = 0.5)
     parse.add_argument('-l', '--numlayers', type=int, default = 2)
+    parse.add_argument('-sq', '--seqlength', type = int, default = 10)
+    parse.add_argument('-p', '--peephole', type =int, default = 0)
 
     parse = subparser.add_parser('generate') #generate phrases
     parse.set_defaults(function = generate)
@@ -535,10 +574,13 @@ if __name__ == '__main__':
     parse.add_argument('-nw', '--numwords', type = int)
     parse.add_argument('-n', '--numsentences', type = int)
     parse.add_argument('-l', '--numlayers', type=int, default = 2)
-    parse.add_argument('-hs', '--hiddensize', type =int, default =100)
+    parse.add_argument('-sq', '--seqlength', type = int, default = 10)
+    parse.add_argument('-hs', '--hiddensize', type = int, default = 100)
+    parse.add_argument('-p', '--peephole', type = int, default = 0)
 
     parse = subparser.add_parser('generator', help='')
     parse.set_defaults(function = generator)
+    parse.add_argument('-sq', '--seqlength', type = int, default = 10)
 
     ARGS = parser.parse_args()
     if ARGS.function is not None:
