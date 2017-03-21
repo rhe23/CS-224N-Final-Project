@@ -52,14 +52,6 @@ class RNN_LSTM:
         self.config = config
         self.pretrain_embeddings = embeddings
 
-        # idx = list(range(data_size))
-
-        # train_inds, dev_inds, test_inds  = get_dev_test_sets(dev_size = self.config.dev_set_size, test_size = self.config.test_set_size, training_indices = idx)
-        #
-        # self.train_x, self.dev_x, self.test_x = x[train_inds],  x[dev_inds], x[test_inds]
-        #
-        # self.train_y, self.dev_y, self.test_y = y[train_inds],  y[dev_inds], y[test_inds]
-
         # #build model steps
         self.add_placeholders() #initiate placeholders
         self.set_cell()
@@ -123,24 +115,7 @@ class RNN_LSTM:
         # state = tf.Variable(self.cell.zero_state(self.config.batch_size, dtype = tf.float32), trainable=False) #initial state
 
         outputs, last_state = tf.nn.dynamic_rnn(self.cell, inputs = self.x, dtype = tf.float32)
-        # outputs = tf.transpose(outputs, [1,0,2])
-        # # # # Gather last output slice
-        #
-        # preds = []
-        # W = tf.get_variable("W2", shape = [self.config.hidden_unit_size, self.config.output_size], initializer=tf.contrib.layers.xavier_initializer() )
-        # b = tf.get_variable("b2", shape = [self.config.output_size], initializer=tf.constant_initializer(0) )
-        # # #
-        # for time_step in range(self.config.max_length):
-        #     out = tf.gather(outputs, ( time_step ) )
-        #     y_t = tf.matmul(out, W) + b
-        #     preds.append(y_t)
-        # # return (tf.reduce_sum(tf.pack(preds, axis=1)))
-        # probs = tf.nn.softmax(tf.pack(preds, axis=1))
-        # preds = tf.pack(preds, axis=1)
 
-        # probs = tf.nn.softmax(outputs)
-        # return outputs
-        # return (last_state, outputs[:, 0:outputs.get_shape()[1]-1,:])
         return outputs
 
     def get_last_state(self, preds):
@@ -211,6 +186,7 @@ class RNN_LSTM:
         return _, loss
 
     def train_on_batch_single(self, sess, batch):
+
         seq_length = self.config.sequence_length
         total_loss = 0.
 
@@ -228,6 +204,8 @@ class RNN_LSTM:
 
         # assert batch_x_mat.shape[1] == batch_y_mat.shape[1], "x and y are not the same length. x: " +str(batch_x_mat.shape[1]) + ". y: " + str(batch_y_mat.shape[1])
 
+
+        self.set_cell()
         for i in sequences:
             x = batch_x_mat[:,i]
             y = batch_y_mat[:,i]
