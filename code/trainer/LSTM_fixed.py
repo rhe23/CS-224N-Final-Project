@@ -236,8 +236,8 @@ class RNN_LSTM:
             #
             # feed = self.create_feed_dict(inputs_batch=x, labels_batch= y, dropout= self.config.drop_out, mask_batch=m)
 
-            loss = sess.run([self.loss], feed_dict={self.input_placeholder:x, self.labels_placeholder: y, self.mask_placeholder: m, self.cell_state: c, self.hidden_state:h})
-            print loss 
+            loss = sess.run(self.loss, feed_dict={self.input_placeholder:x, self.labels_placeholder: y, self.mask_placeholder: m, self.cell_state: c, self.hidden_state:h})
+  
             c = loss[1][0]
             h = loss[1][1]
 
