@@ -520,7 +520,7 @@ def generator(args):
 
                                 preds = session.run(m.last_state, feed_dict=feed)
 
-                                largest_inds = preds.argsort()[::-1][:25] #top 100
+                                largest_inds = preds.argsort()[::-1][:100] #top 100
                                 largest_unscaled_p = preds[largest_inds]
                                 scaled_p = largest_unscaled_p/sum(largest_unscaled_p)
                                 current_ind = np.random.choice(largest_inds, p = scaled_p)
