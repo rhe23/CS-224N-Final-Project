@@ -61,7 +61,6 @@ class RNN_LSTM:
 
         # #build model steps
         self.add_placeholders() #initiate placeholders
-        self.set_cell()
         self.pred = self.training() #forward prop
         self.loss = self.calc_loss(self.pred) #calculate loss
         self.train_op = self.back_prop(self.loss) #optimization step
@@ -122,8 +121,8 @@ class RNN_LSTM:
 
     def training(self): #main training function for the model
         #sets up the construction of the graphs such that when session is called these operations will run
-
         self.add_embeddings()
+        self.set_cell()
         state = tf.nn.rnn_cell.LSTMStateTuple(self.cell_state, self.hidden_state)
 
         # state = tf.Variable(self.cell.zero_state(self.config.batch_size, dtype = tf.float32), trainable=False) #initial state
@@ -237,7 +236,7 @@ class RNN_LSTM:
             # feed = self.create_feed_dict(inputs_batch=x, labels_batch= y, dropout= self.config.drop_out, mask_batch=m)
 
             loss = sess.run(self.loss, feed_dict={self.input_placeholder:x, self.labels_placeholder: y, self.mask_placeholder: m, self.cell_state: c, self.hidden_state:h})
-  
+
             c = loss[1][0]
             h = loss[1][1]
 
