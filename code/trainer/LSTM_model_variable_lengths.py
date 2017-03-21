@@ -451,7 +451,7 @@ def generate(args):
 
                     current_word = vocabs_reversed[current_ind]
 
-                    while len(sentence) <5 and current_word == "<end>":
+                    while len(sentence) <7 and current_word == "<end>":
                         current_ind = np.random.choice(largest_10_inds, p = scaled_p)
 
                         current_word = vocabs_reversed[current_ind]
