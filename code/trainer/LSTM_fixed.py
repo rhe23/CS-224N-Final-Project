@@ -209,7 +209,7 @@ class RNN_LSTM:
             # return sess.run([self.pred], feed_dict={self.input_placeholder:x, self.labels_placeholder: y, self.mask_placeholder: m, self.cell_state: c, self.hidden_state:h})
 
             total_loss += loss[0]
-        return total_loss/len(batch_x_mat.shape[1])
+        return total_loss/batch_x_mat.shape[1]
 
     def test_on_batch_single(self, sess, batch):
 
@@ -246,7 +246,7 @@ class RNN_LSTM:
 
             total_loss += loss[0]
 
-        return total_loss/len(batch_x_mat.shape[1])
+        return total_loss/batch_x_mat.shape[1]
 
     def run_epoch(self, sess, train, dev):
 
