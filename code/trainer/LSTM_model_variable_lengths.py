@@ -11,7 +11,7 @@ max_length = 0
 
 class Config:
 
-    def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 100, batch_size = 256, n_epochs = 10, num_layers =1, learning_rate=0.05, drop_out = 0.5,
+    def __init__(self, max_length, embed_size, output_size, n_features =1 , n_classes=0, hidden_unit_size = 200, batch_size = 256, n_epochs = 10, num_layers =1, learning_rate=0.05, drop_out = 0.5,
                  sequence_length = 10, peepholes = False):
         self.sequence_length = sequence_length
         self.dev_set_size =0.1
@@ -520,7 +520,7 @@ def generator(args):
 
                                 preds = session.run(m.last_state, feed_dict=feed)
 
-                                largest_inds = preds.argsort()[::-1][:15] #top 100
+                                largest_inds = preds.argsort()[::-1][:25] #top 100
                                 largest_unscaled_p = preds[largest_inds]
                                 scaled_p = largest_unscaled_p/sum(largest_unscaled_p)
                                 current_ind = np.random.choice(largest_inds, p = scaled_p)
