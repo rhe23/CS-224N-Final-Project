@@ -280,9 +280,9 @@ def train(args):
     r = args.subreddit
     sample = np.array([get_indices(j) for j in all_dat[r]])
     # subsample_y = [get_indices(j) for j[1:] in all_dat['personalfinance']][0:100]
-    max_length = 10
 
     #seq_length, max_length, embed_size, output_size
+    max_length = max([len(se) for se in sample])
     config_file = Config(max_length = max_length, embed_size = embeddings.shape[1], output_size=embeddings.shape[0], batch_size = 128, drop_out=args.dropout, learning_rate = args.learningrate, hidden_unit_size=args.hiddensize)
 
     idx = np.arange(len(sample))
