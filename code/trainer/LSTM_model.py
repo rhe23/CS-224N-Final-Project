@@ -49,6 +49,7 @@ class RNN_LSTM:
 
         # #build model steps
         self.add_placeholders() #initiate placeholders
+        self.set_cell()
         self.pred = self.training() #forward prop
         self.loss = self.calc_loss(self.pred) #calculate loss
         self.train_op = self.back_prop(self.loss) #optimization step
@@ -97,14 +98,13 @@ class RNN_LSTM:
         self.cell = tf.nn.rnn_cell.LSTMCell(num_units=self.config.hidden_unit_size,
                                         initializer=tf.contrib.layers.xavier_initializer(), activation=tf.sigmoid, state_is_tuple=True)
         self.cell = tf.nn.rnn_cell.DropoutWrapper(cell = self.cell, output_keep_prob=self.dropout_placeholder)
-        # self.cell = tf.contrib.rnn.MultiRNNCell([self.cell]*self.config.num_layers, state_is_tuple=False)
+
         self.cell = tf.nn.rnn_cell.OutputProjectionWrapper(cell=self.cell, output_size=self.config.output_size)
 
     def training(self): #main training function for the model
         #sets up the construction of the graphs such that when session is called these operations will run
 
         self.add_embeddings()
-        self.set_cell()
         # state = tf.Variable(self.cell.zero_state(self.config.batch_size, dtype = tf.float32), trainable=False) #initial state
 
         outputs, last_state = tf.nn.dynamic_rnn(self.cell, inputs = self.x, dtype = tf.float32, sequence_length=self.sequence_placeholder)
@@ -132,7 +132,6 @@ class RNN_LSTM:
     def get_last_state(self, preds):
 
         return tf.reshape(tf.nn.softmax(preds), [self.config.output_size])
-
 
     def get_probabilities(self, preds):
 
