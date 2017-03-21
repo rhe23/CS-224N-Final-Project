@@ -205,7 +205,6 @@ class RNN_LSTM:
         # assert batch_x_mat.shape[1] == batch_y_mat.shape[1], "x and y are not the same length. x: " +str(batch_x_mat.shape[1]) + ". y: " + str(batch_y_mat.shape[1])
 
 
-        self.set_cell()
         for i in sequences:
             x = batch_x_mat[:,i]
             y = batch_y_mat[:,i]
