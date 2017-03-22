@@ -31,7 +31,7 @@ def generate_annotation_file(output_file, sample_titles, num_posts):
 	f.close()
 
 if __name__ == "__main__":
-	random.setseed(1)
+	random.seed(1)
 	parser = argparse.ArgumentParser(description="Extract a number of samples to be annotated")
 	parser.add_argument('posts_file', help="file path for generated post titles")
 	parser.add_argument('output_file', help="file path for outputting the annotation file")
