@@ -236,7 +236,7 @@ class RNN_LSTM:
             print "Batch " + str(i+1) + " Loss: " + str(t)
 
 def train(args):
-    n_epochs = 20
+    n_epochs = 50
     embeddings = get_embeddings(embed_path='./data/new_embeddings_final_filtered.pkl')
     # embeddings = np.load('./data/final_large_weights.npy')
     # embeddings = np.vstack([embeddings, np.zeros(embeddings.shape[1])])
