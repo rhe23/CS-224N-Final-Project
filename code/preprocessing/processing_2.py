@@ -52,20 +52,34 @@ def eval_plot(args):
         if word in vocab:
             word_inds.append(vocab[word])
         else:
-            print "Error: the token '{}' is not in the vocab!"
+            print "Error: the token '{}' is not in the vocab!".format(word)
             return
 
-    from sklearn.manifold import TSNE
     import matplotlib.pyplot as plt
 
-    m = TSNE(n_components=2, random_state=0)
-    m.fit_transform(embeddings)
-    m = m[word_inds,:]
-    plt.scatter(m[:, 0], m[:, 1])
-    for label, x, y in zip(self.vocab, m[:, 0], m[:, 1]):
-        plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords='offset points')
+    # Copied over from assignment 1
+    visualizeIdx = word_inds
+    visualizeVecs = embeddings[word_inds, :]
+    visualizeWords = words
+    temp = (visualizeVecs - np.mean(visualizeVecs, axis=0))
+    covariance = 1.0 / len(visualizeIdx) * temp.T.dot(temp)
+    U,S,V = np.linalg.svd(covariance)
+    coord = temp.dot(U[:,0:2])
 
-    plt.show()
+    for i in xrange(len(visualizeWords)):
+        plt.text(coord[i,0], coord[i,1], visualizeWords[i],
+            bbox=dict(facecolor='green', alpha=0.1))
+
+    plt.xlim((np.min(coord[:,0]), np.max(coord[:,0])))
+    plt.ylim((np.min(coord[:,1]), np.max(coord[:,1])))
+    plt.xlabel("First singular vector")
+    plt.ylabel("Second singular vector")
+    plt.title("2-D Clustering of GloVe Embeddings for Select Words", y=1.05)
+
+    if args.output_path:
+        plt.savefig(args.output_path)
+    else:
+        plt.show()
 
 
 def eval_sim(args):
@@ -140,6 +154,7 @@ if __name__ == "__main__":
     command_parser.add_argument('trained_weights_file', help="trained weights file path")
     command_parser.add_argument('trained_vocab_file', help="trained vocab file path")
     command_parser.add_argument('words_file', help="file path of file of words to plot")
+    command_parser.add_argument('-o', '--output_path', help="optional output path for saving the plot")
     command_parser.set_defaults(func=eval_plot)
 
     command_parser = subparsers.add_parser('eval_sim', help='Find the most similar tokens to a given token')
